@@ -99,8 +99,6 @@ int main() {
     if ((in_fp = _wfopen(L"front.in", L"rb")) == NULL)
         perror("front.in is not in the executable's directory or cannot be opened ");
     else {
-
-
         wchar_t BOM = fgetwc(in_fp); // Assume the first character is a BOM (and skip it)
         if (BOM != 0xFEFF) { // Check if the BOM is UTF-16LE and quit if not
             printf("front.in is not in UTF-16LE format.\n");
