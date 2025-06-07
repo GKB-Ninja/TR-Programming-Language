@@ -13,7 +13,6 @@
 int charClass;
 wchar_t lexeme [100];
 wchar_t nextChar;
-wchar_t secondByte;
 int lexLen;
 int token;
 char nextToken;
@@ -46,10 +45,13 @@ void statement();
 /* Token codes */
 #define INT_LIT 10
 #define IDENT 11
-#define ASSIGN_OP 15
-#define EQUALITY_OP 16
-#define LT_OP 17
-#define GT_OP 18
+#define ASSIGN_OP 12
+#define EQUALITY_OP 13
+#define LE_OP 14
+#define GE_OP 15
+#define LT_OP 16
+#define GT_OP 17
+#define NOT_OP 18
 #define AND_OP 19
 #define OR_OP 20
 #define ADD_OP 21
@@ -67,8 +69,10 @@ void statement();
 #define BREAK_CODE 35
 #define LEFT_PAREN 40
 #define RIGHT_PAREN 41
-#define LEFT_BRACKET 42
-#define RIGHT_BRACKET 43
+#define LEFT_CURLY 42
+#define RIGHT_CURLY 43
+#define LEFT_SQUARE 44
+#define RIGHT_SQUARE 45
 #define RETURN_CODE 50
 #define EOL 90
 #define UNREGISTERED_SYMBOL 99
@@ -99,7 +103,7 @@ int main() {
         getChar();
         do {
             lex();
-            expr();
+            //expr();
         } while (nextToken !=EOF);
     }
 }
@@ -124,12 +128,28 @@ int lookup(int compareMode) {
                 ungetwc(nextChar, in_fp);
                 break;
             case '<':
-                addChar();
-                nextToken = LT_OP;
+                do {
+                    addChar();
+                    getChar();
+                } while (nextChar == '=');
+                if (lexLen == 1)
+                    nextToken = LT_OP;
+                else if (lexLen == 2)
+                    nextToken = LE_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
                 break;
             case '>':
-                addChar();
-                nextToken = GT_OP;
+                do {
+                    addChar();
+                    getChar();
+                } while (nextChar == '=');
+                if (lexLen == 1)
+                    nextToken = GT_OP;
+                else if (lexLen == 2)
+                    nextToken = GE_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
                 break;
             case '&':
                 do {
@@ -191,11 +211,19 @@ int lookup(int compareMode) {
                 break;
             case '{':
                 addChar();
-                nextToken = LEFT_BRACKET;
+                nextToken = LEFT_CURLY;
                 break;
             case '}':
                 addChar();
-                nextToken = RIGHT_BRACKET;
+                nextToken = RIGHT_CURLY;
+                break;
+            case '[':
+                addChar();
+                nextToken = LEFT_SQUARE;
+                break;
+            case ']':
+                addChar();
+                nextToken = RIGHT_SQUARE;
                 break;
             case '.':
                 addChar();
@@ -338,15 +366,18 @@ int lex() {
     return nextToken;
 }
 
+/*
 /* expr
 <expr> -> <term> {('+' | '-') <term>}
-*/
+#1#
+
+
 void expr() {
     printf("Enter <expr>\n");
-    /* Parse the first term */
+    /* Parse the first term #1#
     term();
     /* As long as the next token is + or -, get
-    the next token and parse the next term */
+    the next token and parse the next term #1#
     while (nextToken == ADD_OP || nextToken == SUB_OP) {
         lex();
         term();
@@ -356,13 +387,13 @@ void expr() {
 
 /* term
 <term> -> <factor> {('*' | '/') <factor>)}
-*/
+#1#
 void term() {
     printf("Enter <term>\n");
-    /* Parse the first factor */
+    /* Parse the first factor #1#
     factor();
     /* As long as the next token is * or /, get the
-    next token and parse the next factor */
+    next token and parse the next factor #1#
     while (nextToken == MULT_OP || nextToken == DIV_OP) {
         lex();
         factor();
@@ -372,16 +403,16 @@ void term() {
 
 /* factor
 <factor> -> ident | int_constant | '(' <expr> ')'
-*/
+#1#
 void factor() {
     printf("Enter <factor>\n");
-    /* Determine which RHS */
+    /* Determine which RHS #1#
     if (nextToken == IDENT || nextToken == INT_LIT)
-    /* Get the next token */
+    /* Get the next token #1#
         lex();
     /* If the RHS is (<expr>), call lex to pass over the
     left parenthesis, call expr, and check for the right
-    parenthesis */
+    parenthesis #1#
     else {
         if (nextToken == LEFT_PAREN) {
             lex();
@@ -390,91 +421,92 @@ void factor() {
                 lex();
             else
                 printf("Where is the right parenthesis?\n");
-        } /* End of if (nextToken == ... */
+        } /* End of if (nextToken == ... #1#
         /* It was not an id, an integer literal, or a left
-        parenthesis */
+        parenthesis #1#
         else
             printf("Where is the id, int_constant, or left parenthesis?\n");
-    } /* End of else */
+    } /* End of else #1#
     printf("Exit <factor>\n");
 }
 
 /* Function ifStmt
 <ifStmt> -> "if" (<boolExpr>) <statement>
 [else <statement>]
-*/
+#1#
 void ifStmt() {
     printf("Enter <ifStmt>\n");
-    /* Be sure the first token is 'if' */
+    /* Be sure the first token is 'if' #1#
     if (nextToken != IF_CODE)
         printf("Where is the if-code?\n");
     else {
-        /* Call lex to get to the next token */
+        /* Call lex to get to the next token #1#
         lex();
-        /* Check for the left parenthesis */
+        /* Check for the left parenthesis #1#
         if (nextToken != LEFT_PAREN)
             printf("Where is the left parenthesis?\n");
         else {
-            /* Call lex to get to the next token */
+            /* Call lex to get to the next token #1#
             lex();
-            /* Call boolExpr to parse the Boolean expression */
+            /* Call boolExpr to parse the Boolean expression #1#
             boolExpr();
-            /* Check for the right parenthesis */
+            /* Check for the right parenthesis #1#
             if (nextToken != RIGHT_PAREN)
                 printf("Where is the right parenthesis?\n");
             else {
-                /* Call statement to parse the then clause */
+                /* Call statement to parse the then clause #1#
                 statement();
-                /* If an else is next, parse the else clause */
+                /* If an else is next, parse the else clause #1#
                 if (nextToken == ELSE_CODE) {
-                    /* Call lex to get over the else */
+                    /* Call lex to get over the else #1#
                     lex();
                     statement();
-                } /* end of if (nextToken == ELSE_CODE ... */
-            } /* end of else of if (nextToken != RIGHT ... */
-        } /* end of else of if (nextToken != LEFT ... */
-    } /* end of else of if (nextToken != IF_CODE ... */
+                } /* end of if (nextToken == ELSE_CODE ... #1#
+            } /* end of else of if (nextToken != RIGHT ... #1#
+        } /* end of else of if (nextToken != LEFT ... #1#
+    } /* end of else of if (nextToken != IF_CODE ... #1#
     printf("Exit <ifStmt>\n");
-} /* end of ifStmt */
+} /* end of ifStmt #1#
 
 /* Function boolExpr
 <boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
-*/
+#1#
 void boolExpr() {
 
 }
 
 /* Function boolExprHigher
 <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
-*/
+#1#
 void boolExprHigher() {
 
 }
 
 /* Function boolTerm
 <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
-*/
+#1#
 void boolTerm() {
 
 }
 
 /* Function boolTermHigher
 <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
-*/
+#1#
 void boolTermHigher() {
 
 }
 
 /* Function boolFactor
 <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
-*/
+#1#
 void boolFactor() {
 
 }
 
 /* Function boolNot
 <boolNot> -> '!' <boolFactor>
-*/
+#1#
 void boolNot() {
-// TODO: boolNot's BNF isn't looking great...
+// TODO: boolNot's BNF isn't looking great.
 }
+*/
