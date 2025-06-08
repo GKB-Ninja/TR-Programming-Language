@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <locale.h>
+#include <math.h>
 
 
 /***  Global Declarations  ***/
@@ -38,8 +39,12 @@ void boolFactor();
 void boolNot();
 
 void ifStmt();
+void whileStmt();
+void forStmt();
+void returnStmt();
+void declStmt();
+void assignStmt();
 void statement();
-void anyExpr();
 
 /* Character classes */
 #define DIGIT 0
@@ -51,21 +56,21 @@ void anyExpr();
 #define IDENT 11
 #define ASSIGN_OP 12
 #define EQUALITY_OP 13
-#define NOT_EQUALITY_OP 14
-#define LE_OP 15
-#define GE_OP 16
-#define LT_OP 17
-#define GT_OP 18
-#define NOT_OP 19
-#define AND_OP 20
-#define OR_OP 21
-#define ADD_OP 22
-#define SUB_OP 23
-#define MULT_OP 24
-#define DIV_OP 25
-#define POWER_OP 26
-#define MOD_OP 27
-#define COMMA 28
+#define LE_OP 14
+#define GE_OP 15
+#define LT_OP 16
+#define GT_OP 17
+#define NOT_OP 18
+#define AND_OP 19
+#define OR_OP 20
+#define ADD_OP 21
+#define SUB_OP 22
+#define MULT_OP 23
+#define DIV_OP 24
+#define POWER_OP 25
+#define MOD_OP 26
+#define COMMA 27
+#define NOT_EQUALITY_OP 28
 #define IF_CODE 30
 #define ELSE_CODE 31
 #define WHILE_CODE 32
@@ -79,6 +84,11 @@ void anyExpr();
 #define LEFT_SQUARE 44
 #define RIGHT_SQUARE 45
 #define RETURN_CODE 50
+#define TYPE_INT 60
+#define TYPE_BOOL 61
+#define TYPE_CHAR 62
+#define TYPE_FLOAT 63
+#define TYPE_DOUBLE 64
 #define TRUE_VAL 70
 #define FALSE_VAL 71
 #define EOL 90
@@ -98,8 +108,6 @@ int main() {
     if ((in_fp = _wfopen(L"front.in", L"rb")) == NULL)
         perror("front.in is not in the executable's directory or cannot be opened ");
     else {
-
-
         wchar_t BOM = fgetwc(in_fp); // Assume the first character is a BOM (and skip it)
         if (BOM != 0xFEFF) { // Check if the BOM is UTF-16LE and quit if not
             printf("front.in is not in UTF-16LE format.\n");
@@ -120,71 +128,80 @@ int main() {
 int lookup(int compareMode) {
     if (compareMode == OPERATOR_MODE) {
         switch (nextChar) {
-            case '=':
-                addChar();
-                getChar();
-                if (nextChar == '=') {
+            case '!':
+                do {
                     addChar();
-                    nextToken = EQUALITY_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
-                    nextToken = ASSIGN_OP;
+                    getChar();
                 }
+                while (nextChar == '=');
+                if (lexLen == 1)
+                    nextToken = NOT_OP;
+                else if (lexLen == 2 || nextToken == '=')
+                    nextToken = NOT_EQUALITY_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
+                ungetwc(nextChar, in_fp);
+                break;
+            case '=':
+                do {
+                    addChar();
+                    getChar();
+                } while (nextChar == '=');
+                if (lexLen == 1)
+                    nextToken = ASSIGN_OP;
+                else if (lexLen == 2)
+                    nextToken = EQUALITY_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
+                ungetwc(nextChar, in_fp);
                 break;
             case '<':
-                addChar();
-                getChar();
-                if (nextChar == '=') {
+                do {
                     addChar();
-                    nextToken = LE_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
+                    getChar();
+                } while (nextChar == '=');
+                if (lexLen == 1)
                     nextToken = LT_OP;
-                }
+                else if (lexLen == 2 && lexeme[1] == '=')
+                    nextToken = LE_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
+                ungetwc(nextChar, in_fp);
                 break;
             case '>':
-                addChar();
-                getChar();
-                if (nextChar == '=') {
+                do {
                     addChar();
-                    nextToken = GE_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
+                    getChar();
+                } while (nextChar == '=');
+                if (lexLen == 1)
                     nextToken = GT_OP;
-                }
-                break;
-            case '!':
-                addChar();
-                getChar();
-                if (nextChar == '=') {
-                    addChar();
-                    nextToken = NOT_EQUALITY_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
-                    nextToken = NOT_OP;
-                }
+                else if (lexLen == 2 && lexeme[1] == '=')
+                    nextToken = GE_OP;
+                else
+                    nextToken = UNREGISTERED_SYMBOL;
+                ungetwc(nextChar, in_fp);
                 break;
             case '&':
-                addChar();
-                getChar();
-                if (nextChar == '&') {
+                do {
                     addChar();
+                    getChar();
+                } while (nextChar == '&');
+                if (lexLen == 2)
                     nextToken = AND_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
+                else
                     nextToken = UNREGISTERED_SYMBOL;
-                }
+                ungetwc(nextChar, in_fp);
                 break;
             case '|':
-                addChar();
-                getChar();
-                if (nextChar == '|') {
+                do {
                     addChar();
+                    getChar();
+                } while (nextChar == '|');
+                if (lexLen == 2)
                     nextToken = OR_OP;
-                } else {
-                    ungetwc(nextChar, in_fp);
+                else
                     nextToken = UNREGISTERED_SYMBOL;
-                }
+                ungetwc(nextChar, in_fp);
                 break;
             case '+':
                 addChar();
@@ -267,6 +284,16 @@ int lookup(int compareMode) {
             nextToken = TRUE_VAL;
         } else if (wcscmp(lexeme, L"false") == 0) {
             nextToken = FALSE_VAL;
+        } else if (wcscmp(lexeme, L"int") == 0) {
+            nextToken = TYPE_INT;
+        } else if (wcscmp(lexeme, L"bool") == 0) {
+            nextToken = TYPE_BOOL;
+        } else if (wcscmp(lexeme, L"char") == 0) {
+            nextToken = TYPE_CHAR;
+        } else if (wcscmp(lexeme, L"float") == 0) {
+            nextToken = TYPE_FLOAT;
+        } else if (wcscmp(lexeme, L"double") == 0) {
+            nextToken = TYPE_DOUBLE;
         } else {
             nextToken = IDENT;
         }
@@ -464,6 +491,8 @@ void factor() {
 <ifStmt> -> "if" (<boolExpr>) <statement>
 [else <statement>]
 */
+
+
 void ifStmt() {
     printf("Enter <ifStmt>\n");
     /* Be sure the first token is 'if' */
@@ -479,7 +508,7 @@ void ifStmt() {
             /* Call lex to get to the next token */
             lex();
             /* Call boolExpr to parse the Boolean expression */
-            expr();
+            boolExpr();
             /* Check for the right parenthesis */
             if (nextToken != RIGHT_PAREN)
                 printf("Where is the right parenthesis?\n");
@@ -504,47 +533,79 @@ void ifStmt() {
 void boolExpr() {
     printf("Enter <boolExpr>\n");
     boolExprHigher();
-    while (nextToken == OR_OP){}
-
+    while (nextToken == OR_OP){
+        boolTermHigher();
+    }
+    printf("Exit <boolExpr>\n");
 }
 
 /* Function boolExprHigher
 <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
 */
 void boolExprHigher() {
+    printf("Enter <boolExprHigher>\n");
     boolTerm();
-    while (nextToken == AND_OP){}
+    while (nextToken == AND_OP) {
+        boolTerm();
+    }
+    printf("Exit <boolExprHigher>\n");
 }
 
 /* Function boolTerm
 <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
 */
 void boolTerm() {
+    printf("Enter <boolTerm>\n");
     boolTermHigher();
-    while (nextToken == EQUALITY_OP || nextToken == NOT_OP){}
+    while (nextToken == EQUALITY_OP || nextToken == NOT_EQUALITY_OP) {
+        boolTermHigher();
+    }
+    printf("Exit <boolTerm>\n");
 }
 
 /* Function boolTermHigher
 <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
 */
 void boolTermHigher() {
+    printf("Enter <boolTermHigher>\n");
     boolFactor();
+    while (nextToken == GT_OP || nextToken == LT_OP || nextToken == GE_OP || nextToken == LE_OP) {
+        boolTerm();
+    }
+    printf("Exit <boolTermHigher>\n");
 }
 
 /* Function boolFactor
 <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
 */
 void boolFactor() {
+    printf("Enter <boolFactor>\n");
     if (nextToken == NOT_OP)
         boolNot();
+    printf("Exit <boolFactor>\n");
 }
 
 /* Function boolNot
 <boolNot> -> '!' <boolFactor>
 */
 void boolNot() {
-    boolTerm();
+    boolFactor();
 // TODO: boolNot's BNF isn't looking great.
+}
+
+/*
+ <declStmt> -> <dataType> <identifier> ['=' <expr>]
+ */
+void declStmt() {
+    printf("Enter <declStmt>\n");
+
+    printf("Exit <declStmt>\n");
+}
+
+void assignStmt() {
+    printf("Enter <assignStmt>\n");
+
+    printf("Exit <assignStmt>\n");
 }
 
 // TODO: I suggest reconstruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
