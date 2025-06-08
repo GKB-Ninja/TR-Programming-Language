@@ -5,7 +5,6 @@
 #include <string.h>
 #include <wchar.h>
 #include <locale.h>
-#include <math.h>
 
 
 /***  Global Declarations  ***/
@@ -25,22 +24,18 @@ void getChar();
 void getNonBlank();
 int lex();
 int lookup(int compareMode);
-
 void expr();
 void factor();
 void term();
 void error();
-
 void boolExpr();
 void boolExprHigher();
 void boolTerm();
 void boolTermHigher();
 void boolFactor();
 void boolNot();
-
 void ifStmt();
 void statement();
-void anyExpr();
 
 /* Character classes */
 #define DIGIT 0
@@ -66,7 +61,6 @@ void anyExpr();
 #define POWER_OP 25
 #define MOD_OP 26
 #define COMMA 27
-#define NOT_EQUALITY_OP 28
 #define IF_CODE 30
 #define ELSE_CODE 31
 #define WHILE_CODE 32
@@ -80,8 +74,6 @@ void anyExpr();
 #define LEFT_SQUARE 44
 #define RIGHT_SQUARE 45
 #define RETURN_CODE 50
-#define TRUE_VAL 70
-#define FALSE_VAL 71
 #define EOL 90
 #define UNREGISTERED_SYMBOL 99
 
@@ -111,27 +103,17 @@ int main() {
         getChar();
         do {
             lex();
-            statement();
+            //expr();
         } while (nextToken !=EOF);
     }
 }
+// TODO: GE and LE operators, logical not
 /************************************************************************************/
 
 /* lookup - a function to lookup reserved keywords and symbols, returning the nextToken */
 int lookup(int compareMode) {
     if (compareMode == OPERATOR_MODE) {
         switch (nextChar) {
-            case '!':
-                do {
-                    addChar();
-                    getChar();
-                }
-                while (nextChar == '=');
-                if (lexLen == 1)
-                    nextToken = NOT_OP;
-                else if (lexLen == 2 || nextToken == '=')
-                    nextToken = NOT_EQUALITY_OP;
-                break;
             case '=':
                 do {
                     addChar();
@@ -146,30 +128,26 @@ int lookup(int compareMode) {
                 ungetwc(nextChar, in_fp);
                 break;
             case '<':
-                do {
+                addChar();
+                getChar();
+                if (nextChar == '=') {
                     addChar();
-                    getChar();
-                } while (nextChar == '=');
-                if (lexLen == 1)
-                    nextToken = LT_OP;
-                else if (lexLen == 2 && lexeme[1] == '=')
                     nextToken = LE_OP;
-                else
-                    nextToken = UNREGISTERED_SYMBOL;
-                ungetwc(nextChar, in_fp);
+                } else {
+                    ungetwc(nextChar, in_fp);
+                    nextToken = LT_OP;
+                }
                 break;
             case '>':
-                do {
+                addChar();
+                getChar();
+                if (nextChar == '=') {
                     addChar();
-                    getChar();
-                } while (nextChar == '=');
-                if (lexLen == 1)
-                    nextToken = GT_OP;
-                else if (lexLen == 2 && lexeme[1] == '=')
                     nextToken = GE_OP;
-                else
-                    nextToken = UNREGISTERED_SYMBOL;
-                ungetwc(nextChar, in_fp);
+                } else {
+                    ungetwc(nextChar, in_fp);
+                    nextToken = GT_OP;
+                }
                 break;
             case '&':
                 do {
@@ -270,10 +248,6 @@ int lookup(int compareMode) {
             nextToken = BREAK_CODE;
         } else if (wcscmp(lexeme, L"continue") == 0) {
             nextToken = CONTINUE_CODE;
-        } else if (wcscmp(lexeme, L"true") == 0){
-            nextToken = TRUE_VAL;
-        } else if (wcscmp(lexeme, L"false") == 0) {
-            nextToken = FALSE_VAL;
         } else {
             nextToken = IDENT;
         }
@@ -390,25 +364,9 @@ int lex() {
     return nextToken;
 }
 
-/*
- <statement> -> {(<expr> | <ifStmt> | <boolExp>)}
- */
-void statement() {
-    if (nextToken == INT_LIT || nextToken == IDENT || nextToken == LEFT_PAREN || nextToken == RIGHT_PAREN)
-    {
-        expr();
-    }
-    else if (nextToken == IF_CODE) {
-        ifStmt();
-    }
-    else
-        printf("Invalid statement.\n");
-}
-
 /* expr
 <expr> -> <term> {('+' | '-') <term>}
 */
-
 void expr() {
     printf("Enter <expr>\n");
     /* Parse the first term */
@@ -471,8 +429,6 @@ void factor() {
 <ifStmt> -> "if" (<boolExpr>) <statement>
 [else <statement>]
 */
-
-
 void ifStmt() {
     printf("Enter <ifStmt>\n");
     /* Be sure the first token is 'if' */
@@ -488,7 +444,7 @@ void ifStmt() {
             /* Call lex to get to the next token */
             lex();
             /* Call boolExpr to parse the Boolean expression */
-            expr();
+            boolExpr();
             /* Check for the right parenthesis */
             if (nextToken != RIGHT_PAREN)
                 printf("Where is the right parenthesis?\n");
@@ -511,50 +467,40 @@ void ifStmt() {
 <boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
 */
 void boolExpr() {
-    printf("Enter <boolExpr>\n");
-    boolExprHigher();
-    while (nextToken == OR_OP){}
 
-    }
 }
 
 /* Function boolExprHigher
 <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
 */
 void boolExprHigher() {
-    boolTerm();
-    while (nextToken == AND_OP){}
+
 }
 
 /* Function boolTerm
 <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
 */
 void boolTerm() {
-    boolTermHigher();
-    while (nextToken == EQUALITY_OP || nextToken == NOT_OP)
+
 }
 
 /* Function boolTermHigher
 <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
 */
 void boolTermHigher() {
-    boolFactor();
+
 }
 
 /* Function boolFactor
 <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
 */
 void boolFactor() {
-    if (nextToken == NOT_OP)
-        boolNot();
+
 }
 
 /* Function boolNot
 <boolNot> -> '!' <boolFactor>
 */
 void boolNot() {
-    boolTerm();
-// TODO: boolNot's BNF isn't looking great.
+// TODO: boolNot's BNF isn't looking great...
 }
-
-// TODO: I suggest reconstruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
