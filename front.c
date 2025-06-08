@@ -66,6 +66,7 @@ void anyExpr();
 #define POWER_OP 25
 #define MOD_OP 26
 #define COMMA 27
+#define NOT_EQUALITY_OP 28
 #define IF_CODE 30
 #define ELSE_CODE 31
 #define WHILE_CODE 32
@@ -121,8 +122,15 @@ int lookup(int compareMode) {
     if (compareMode == OPERATOR_MODE) {
         switch (nextChar) {
             case '!':
-                addChar();
-                nextToken = NOT_OP;
+                do {
+                    addChar();
+                    getChar();
+                }
+                while (nextChar == '=');
+                if (lexLen == 1)
+                    nextToken = NOT_OP;
+                else if (lexLen == 2 || nextToken == '=')
+                    nextToken = NOT_EQUALITY_OP;
                 break;
             case '=':
                 do {
@@ -505,7 +513,7 @@ void ifStmt() {
 void boolExpr() {
     printf("Enter <boolExpr>\n");
     boolExprHigher();
-    while
+    while (nextToken == OR_OP){}
 
     }
 }
@@ -515,6 +523,7 @@ void boolExpr() {
 */
 void boolExprHigher() {
     boolTerm();
+    while (nextToken == AND_OP){}
 }
 
 /* Function boolTerm
@@ -522,6 +531,7 @@ void boolExprHigher() {
 */
 void boolTerm() {
     boolTermHigher();
+    while (nextToken == EQUALITY_OP || nextToken == NOT_OP)
 }
 
 /* Function boolTermHigher
