@@ -503,42 +503,48 @@ void ifStmt() {
 <boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
 */
 void boolExpr() {
+    printf("Enter <boolExpr>\n");
+    boolExprHigher();
+    while
 
+    }
 }
 
 /* Function boolExprHigher
 <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
 */
 void boolExprHigher() {
-
+    boolTerm();
 }
 
 /* Function boolTerm
 <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
 */
 void boolTerm() {
-
+    boolTermHigher();
 }
 
 /* Function boolTermHigher
 <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
 */
 void boolTermHigher() {
-
+    boolFactor();
 }
 
 /* Function boolFactor
 <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
 */
 void boolFactor() {
-
+    if (nextToken == NOT_OP)
+        boolNot();
 }
 
 /* Function boolNot
 <boolNot> -> '!' <boolFactor>
 */
 void boolNot() {
+    boolTerm();
 // TODO: boolNot's BNF isn't looking great.
 }
 
-// TODO: I suggest restruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
+// TODO: I suggest reconstruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
