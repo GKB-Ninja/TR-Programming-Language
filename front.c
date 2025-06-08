@@ -104,7 +104,7 @@ int main() {
         do {
             lex();
             //expr();
-        } while (nextToken !=EOF);
+        } while (nextToken != EOF);
     }
 }
 // TODO: GE and LE operators, logical not
@@ -115,17 +115,15 @@ int lookup(int compareMode) {
     if (compareMode == OPERATOR_MODE) {
         switch (nextChar) {
             case '=':
-                do {
+                addChar();
+                getChar();
+                if (nextChar == '=') {
                     addChar();
-                    getChar();
-                } while (nextChar == '=');
-                if (lexLen == 1)
-                    nextToken = ASSIGN_OP;
-                else if (lexLen == 2)
                     nextToken = EQUALITY_OP;
-                else
-                    nextToken = UNREGISTERED_SYMBOL;
-                ungetwc(nextChar, in_fp);
+                } else {
+                    ungetwc(nextChar, in_fp);
+                    nextToken = ASSIGN_OP;
+                }
                 break;
             case '<':
                 addChar();
@@ -149,27 +147,31 @@ int lookup(int compareMode) {
                     nextToken = GT_OP;
                 }
                 break;
+            case '!':
+                addChar();
+                nextToken = NOT_OP;
+                break;
             case '&':
-                do {
+                addChar();
+                getChar();
+                if (nextChar == '&') {
                     addChar();
-                    getChar();
-                } while (nextChar == '&');
-                if (lexLen == 2)
                     nextToken = AND_OP;
-                else
+                } else {
+                    ungetwc(nextChar, in_fp);
                     nextToken = UNREGISTERED_SYMBOL;
-                ungetwc(nextChar, in_fp);
+                }
                 break;
             case '|':
-                do {
+                addChar();
+                getChar();
+                if (nextChar == '|') {
                     addChar();
-                    getChar();
-                } while (nextChar == '|');
-                if (lexLen == 2)
                     nextToken = OR_OP;
-                else
+                } else {
+                    ungetwc(nextChar, in_fp);
                     nextToken = UNREGISTERED_SYMBOL;
-                ungetwc(nextChar, in_fp);
+                }
                 break;
             case '+':
                 addChar();
