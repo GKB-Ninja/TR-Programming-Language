@@ -24,18 +24,22 @@ void getChar();
 void getNonBlank();
 int lex();
 int lookup(int compareMode);
+
 void expr();
 void factor();
 void term();
 void error();
+
 void boolExpr();
 void boolExprHigher();
 void boolTerm();
 void boolTermHigher();
 void boolFactor();
 void boolNot();
+
 void ifStmt();
 void statement();
+void anyExpr();
 
 /* Character classes */
 #define DIGIT 0
@@ -47,20 +51,21 @@ void statement();
 #define IDENT 11
 #define ASSIGN_OP 12
 #define EQUALITY_OP 13
-#define LE_OP 14
-#define GE_OP 15
-#define LT_OP 16
-#define GT_OP 17
-#define NOT_OP 18
-#define AND_OP 19
-#define OR_OP 20
-#define ADD_OP 21
-#define SUB_OP 22
-#define MULT_OP 23
-#define DIV_OP 24
-#define POWER_OP 25
-#define MOD_OP 26
-#define COMMA 27
+#define NOT_EQUALITY_OP 14
+#define LE_OP 15
+#define GE_OP 16
+#define LT_OP 17
+#define GT_OP 18
+#define NOT_OP 19
+#define AND_OP 20
+#define OR_OP 21
+#define ADD_OP 22
+#define SUB_OP 23
+#define MULT_OP 24
+#define DIV_OP 25
+#define POWER_OP 26
+#define MOD_OP 27
+#define COMMA 28
 #define IF_CODE 30
 #define ELSE_CODE 31
 #define WHILE_CODE 32
@@ -74,6 +79,8 @@ void statement();
 #define LEFT_SQUARE 44
 #define RIGHT_SQUARE 45
 #define RETURN_CODE 50
+#define TRUE_VAL 70
+#define FALSE_VAL 71
 #define EOL 90
 #define UNREGISTERED_SYMBOL 99
 
@@ -103,11 +110,10 @@ int main() {
         getChar();
         do {
             lex();
-            //expr();
-        } while (nextToken != EOF);
+            statement();
+        } while (nextToken !=EOF);
     }
 }
-// TODO: GE and LE operators, logical not
 /************************************************************************************/
 
 /* lookup - a function to lookup reserved keywords and symbols, returning the nextToken */
@@ -149,7 +155,14 @@ int lookup(int compareMode) {
                 break;
             case '!':
                 addChar();
-                nextToken = NOT_OP;
+                getChar();
+                if (nextChar == '=') {
+                    addChar();
+                    nextToken = NOT_EQUALITY_OP;
+                } else {
+                    ungetwc(nextChar, in_fp);
+                    nextToken = NOT_OP;
+                }
                 break;
             case '&':
                 addChar();
@@ -250,6 +263,10 @@ int lookup(int compareMode) {
             nextToken = BREAK_CODE;
         } else if (wcscmp(lexeme, L"continue") == 0) {
             nextToken = CONTINUE_CODE;
+        } else if (wcscmp(lexeme, L"true") == 0){
+            nextToken = TRUE_VAL;
+        } else if (wcscmp(lexeme, L"false") == 0) {
+            nextToken = FALSE_VAL;
         } else {
             nextToken = IDENT;
         }
@@ -366,9 +383,25 @@ int lex() {
     return nextToken;
 }
 
+/*
+ <statement> -> {(<expr> | <ifStmt> | <boolExp>)}
+ */
+void statement() {
+    if (nextToken == INT_LIT || nextToken == IDENT || nextToken == LEFT_PAREN || nextToken == RIGHT_PAREN)
+    {
+        expr();
+    }
+    else if (nextToken == IF_CODE) {
+        ifStmt();
+    }
+    else
+        printf("Invalid statement.\n");
+}
+
 /* expr
 <expr> -> <term> {('+' | '-') <term>}
 */
+
 void expr() {
     printf("Enter <expr>\n");
     /* Parse the first term */
@@ -446,7 +479,7 @@ void ifStmt() {
             /* Call lex to get to the next token */
             lex();
             /* Call boolExpr to parse the Boolean expression */
-            boolExpr();
+            expr();
             /* Check for the right parenthesis */
             if (nextToken != RIGHT_PAREN)
                 printf("Where is the right parenthesis?\n");
@@ -469,6 +502,9 @@ void ifStmt() {
 <boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
 */
 void boolExpr() {
+    printf("Enter <boolExpr>\n");
+    boolExprHigher();
+    while (nextToken == OR_OP){}
 
 }
 
@@ -476,33 +512,39 @@ void boolExpr() {
 <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
 */
 void boolExprHigher() {
-
+    boolTerm();
+    while (nextToken == AND_OP){}
 }
 
 /* Function boolTerm
 <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
 */
 void boolTerm() {
-
+    boolTermHigher();
+    while (nextToken == EQUALITY_OP || nextToken == NOT_OP){}
 }
 
 /* Function boolTermHigher
 <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
 */
 void boolTermHigher() {
-
+    boolFactor();
 }
 
 /* Function boolFactor
 <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
 */
 void boolFactor() {
-
+    if (nextToken == NOT_OP)
+        boolNot();
 }
 
 /* Function boolNot
 <boolNot> -> '!' <boolFactor>
 */
 void boolNot() {
-// TODO: boolNot's BNF isn't looking great...
+    boolTerm();
+// TODO: boolNot's BNF isn't looking great.
 }
+
+// TODO: I suggest reconstruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
