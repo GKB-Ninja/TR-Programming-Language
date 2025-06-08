@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <locale.h>
+#include <math.h>
 
 
 /***  Global Declarations  ***/
@@ -24,18 +25,22 @@ void getChar();
 void getNonBlank();
 int lex();
 int lookup(int compareMode);
+
 void expr();
 void factor();
 void term();
 void error();
+
 void boolExpr();
 void boolExprHigher();
 void boolTerm();
 void boolTermHigher();
 void boolFactor();
 void boolNot();
+
 void ifStmt();
 void statement();
+void anyExpr();
 
 /* Character classes */
 #define DIGIT 0
@@ -74,6 +79,8 @@ void statement();
 #define LEFT_SQUARE 44
 #define RIGHT_SQUARE 45
 #define RETURN_CODE 50
+#define TRUE_VAL 70
+#define FALSE_VAL 71
 #define EOL 90
 #define UNREGISTERED_SYMBOL 99
 
@@ -103,17 +110,20 @@ int main() {
         getChar();
         do {
             lex();
-            //expr();
+            statement();
         } while (nextToken !=EOF);
     }
 }
-// TODO: GE and LE operators, logical not
 /************************************************************************************/
 
 /* lookup - a function to lookup reserved keywords and symbols, returning the nextToken */
 int lookup(int compareMode) {
     if (compareMode == OPERATOR_MODE) {
         switch (nextChar) {
+            case '!':
+                addChar();
+                nextToken = NOT_OP;
+                break;
             case '=':
                 do {
                     addChar();
@@ -252,6 +262,10 @@ int lookup(int compareMode) {
             nextToken = BREAK_CODE;
         } else if (wcscmp(lexeme, L"continue") == 0) {
             nextToken = CONTINUE_CODE;
+        } else if (wcscmp(lexeme, L"true") == 0){
+            nextToken = TRUE_VAL;
+        } else if (wcscmp(lexeme, L"false") == 0) {
+            nextToken = FALSE_VAL;
         } else {
             nextToken = IDENT;
         }
@@ -368,147 +382,163 @@ int lex() {
     return nextToken;
 }
 
+/*
+ <statement> -> {(<expr> | <ifStmt> | <boolExp>)}
+ */
+void statement() {
+    if (nextToken == INT_LIT || nextToken == IDENT || nextToken == LEFT_PAREN || nextToken == RIGHT_PAREN)
+    {
+        expr();
+    }
+    else if (nextToken == IF_CODE) {
+        ifStmt();
+    }
+    else
+        printf("Invalid statement.\n");
+}
 
-// /* expr
-// <expr> -> <term> {('+' | '-') <term>}
-// */
-// void expr() {
-//     printf("Enter <expr>\n");
-//     /* Parse the first term */
-//     term();
-//     /* As long as the next token is + or -, get
-//     the next token and parse the next term */
-//     while (nextToken == ADD_OP || nextToken == SUB_OP) {
-//         lex();
-//         term();
-//     }
-//     printf("Exit <expr>\n");
-// }
-//
-// /* term
-// <term> -> <factor> {('*' | '/') <factor>)}
-// */
-// void term() {
-//     printf("Enter <term>\n");
-//     /* Parse the first factor */
-//     factor();
-//     /* As long as the next token is * or /, get the
-//     next token and parse the next factor */
-//     while (nextToken == MULT_OP || nextToken == DIV_OP) {
-//         lex();
-//         factor();
-//     }
-//     printf("Exit <term>\n");
-// }
-//
-// /* factor
-// <factor> -> ident | int_constant | '(' <expr> ')'
-// */
-// void factor() {
-//     printf("Enter <factor>\n");
-//     /* Determine which RHS */
-//     if (nextToken == IDENT || nextToken == INT_LIT)
-//     /* Get the next token */
-//         lex();
-//     /* If the RHS is (<expr>), call lex to pass over the
-//     left parenthesis, call expr, and check for the right
-//     parenthesis */
-//     else {
-//         if (nextToken == LEFT_PAREN) {
-//             lex();
-//             expr();
-//             if (nextToken == RIGHT_PAREN)
-//                 lex();
-//             else
-//                 printf("Where is the right parenthesis?\n");
-//         } /* End of if (nextToken == ... */
-//         /* It was not an id, an integer literal, or a left
-//         parenthesis */
-//         else
-//             printf("Where is the id, int_constant, or left parenthesis?\n");
-//     } /* End of else */
-//     printf("Exit <factor>\n");
-// }
-//
-// /* Function ifStmt
-// <ifStmt> -> "if" (<boolExpr>) <statement>
-// [else <statement>]
-// */
-//
-//
-// void ifStmt() {
-//     printf("Enter <ifStmt>\n");
-//     /* Be sure the first token is 'if' */
-//     if (nextToken != IF_CODE)
-//         printf("Where is the if-code?\n");
-//     else {
-//         /* Call lex to get to the next token */
-//         lex();
-//         /* Check for the left parenthesis */
-//         if (nextToken != LEFT_PAREN)
-//             printf("Where is the left parenthesis?\n");
-//         else {
-//             /* Call lex to get to the next token */
-//             lex();
-//             /* Call boolExpr to parse the Boolean expression */
-//             boolExpr();
-//             /* Check for the right parenthesis */
-//             if (nextToken != RIGHT_PAREN)
-//                 printf("Where is the right parenthesis?\n");
-//             else {
-//                 /* Call statement to parse the then clause */
-//                 statement();
-//                 /* If an else is next, parse the else clause */
-//                 if (nextToken == ELSE_CODE) {
-//                     /* Call lex to get over the else */
-//                     lex();
-//                     statement();
-//                 } /* end of if (nextToken == ELSE_CODE ... */
-//             } /* end of else of if (nextToken != RIGHT ... */
-//         } /* end of else of if (nextToken != LEFT ... */
-//     } /* end of else of if (nextToken != IF_CODE ... */
-//     printf("Exit <ifStmt>\n");
-// } /* end of ifStmt */
-//
-// /* Function boolExpr
-// <boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
-// */
-// void boolExpr() {
-//
-// }
-//
-// /* Function boolExprHigher
-// <boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
-// */
-// void boolExprHigher() {
-//
-// }
-//
-// /* Function boolTerm
-// <boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
-// */
-// void boolTerm() {
-//
-// }
-//
-// /* Function boolTermHigher
-// <boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
-// */
-// void boolTermHigher() {
-//
-// }
-//
-// /* Function boolFactor
-// <boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
-// */
-// void boolFactor() {
-//
-// }
-//
-// /* Function boolNot
-// <boolNot> -> '!' <boolFactor>
-// */
-// void boolNot() {
-// // TODO: boolNot's BNF isn't looking great.
-// }
+/* expr
+<expr> -> <term> {('+' | '-') <term>}
+*/
 
+void expr() {
+    printf("Enter <expr>\n");
+    /* Parse the first term */
+    term();
+    /* As long as the next token is + or -, get
+    the next token and parse the next term */
+    while (nextToken == ADD_OP || nextToken == SUB_OP) {
+        lex();
+        term();
+    }
+    printf("Exit <expr>\n");
+}
+
+/* term
+<term> -> <factor> {('*' | '/') <factor>)}
+*/
+void term() {
+    printf("Enter <term>\n");
+    /* Parse the first factor */
+    factor();
+    /* As long as the next token is * or /, get the
+    next token and parse the next factor */
+    while (nextToken == MULT_OP || nextToken == DIV_OP) {
+        lex();
+        factor();
+    }
+    printf("Exit <term>\n");
+}
+
+/* factor
+<factor> -> ident | int_constant | '(' <expr> ')'
+*/
+void factor() {
+    printf("Enter <factor>\n");
+    /* Determine which RHS */
+    if (nextToken == IDENT || nextToken == INT_LIT)
+    /* Get the next token */
+        lex();
+    /* If the RHS is (<expr>), call lex to pass over the
+    left parenthesis, call expr, and check for the right
+    parenthesis */
+    else {
+        if (nextToken == LEFT_PAREN) {
+            lex();
+            expr();
+            if (nextToken == RIGHT_PAREN)
+                lex();
+            else
+                printf("Where is the right parenthesis?\n");
+        } /* End of if (nextToken == ... */
+        /* It was not an id, an integer literal, or a left
+        parenthesis */
+        else
+            printf("Where is the id, int_constant, or left parenthesis?\n");
+    } /* End of else */
+    printf("Exit <factor>\n");
+}
+
+/* Function ifStmt
+<ifStmt> -> "if" (<boolExpr>) <statement>
+[else <statement>]
+*/
+
+
+void ifStmt() {
+    printf("Enter <ifStmt>\n");
+    /* Be sure the first token is 'if' */
+    if (nextToken != IF_CODE)
+        printf("Where is the if-code?\n");
+    else {
+        /* Call lex to get to the next token */
+        lex();
+        /* Check for the left parenthesis */
+        if (nextToken != LEFT_PAREN)
+            printf("Where is the left parenthesis?\n");
+        else {
+            /* Call lex to get to the next token */
+            lex();
+            /* Call boolExpr to parse the Boolean expression */
+            expr();
+            /* Check for the right parenthesis */
+            if (nextToken != RIGHT_PAREN)
+                printf("Where is the right parenthesis?\n");
+            else {
+                /* Call statement to parse the then clause */
+                statement();
+                /* If an else is next, parse the else clause */
+                if (nextToken == ELSE_CODE) {
+                    /* Call lex to get over the else */
+                    lex();
+                    statement();
+                } /* end of if (nextToken == ELSE_CODE ... */
+            } /* end of else of if (nextToken != RIGHT ... */
+        } /* end of else of if (nextToken != LEFT ... */
+    } /* end of else of if (nextToken != IF_CODE ... */
+    printf("Exit <ifStmt>\n");
+} /* end of ifStmt */
+
+/* Function boolExpr
+<boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
+*/
+void boolExpr() {
+
+}
+
+/* Function boolExprHigher
+<boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
+*/
+void boolExprHigher() {
+
+}
+
+/* Function boolTerm
+<boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
+*/
+void boolTerm() {
+
+}
+
+/* Function boolTermHigher
+<boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
+*/
+void boolTermHigher() {
+
+}
+
+/* Function boolFactor
+<boolFactor> -> <boolNot> | <expr> | '(' <boolExpr> ')'
+*/
+void boolFactor() {
+
+}
+
+/* Function boolNot
+<boolNot> -> '!' <boolFactor>
+*/
+void boolNot() {
+// TODO: boolNot's BNF isn't looking great.
+}
+
+// TODO: I suggest restruction of the parse tree. Ambiguity in seperating comparison, logical and arithmetic.
