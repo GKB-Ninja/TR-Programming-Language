@@ -34,9 +34,9 @@ void term();
 void error();
 
 void boolExpr();
-void boolExprHigher();
 void boolTerm();
-void boolTermHigher();
+void boolEquality();
+void boolRelational();
 void boolFactor();
 void boolNot();
 
@@ -92,6 +92,7 @@ void assignStmt();
 #define TYPE_DOUBLE 64
 #define TRUE_VAL 70
 #define FALSE_VAL 71
+#define COMMENT 89
 #define EOL 90
 #define UNREGISTERED_SYMBOL 99
 
@@ -245,6 +246,10 @@ int lookup(int compareMode) {
             case ']':
                 addChar();
                 nextToken = RIGHT_SQUARE;
+                break;
+            case '$':
+                addChar();
+                nextToken = COMMENT;
                 break;
             case '.':
                 addChar();
@@ -493,7 +498,7 @@ void expr() {
 }
 
 /* Function term
-<term> -> <factor> {('*' | '/') <factor>)}
+<term> -> <factor> {('*' | '/' | '%') <factor>)}
 */
 void term() {
     printf("Enter <term>\n");
@@ -501,7 +506,7 @@ void term() {
     factor();
     /* As long as the next token is * or /, get the
     next token and parse the next factor */
-    while (nextToken == MULT_OP || nextToken == DIV_OP) {
+    while (nextToken == MULT_OP || nextToken == DIV_OP || nextToken == MOD_OP) {
         lex();
         factor();
     }
@@ -517,24 +522,23 @@ void factor() {
     if (nextToken == IDENT || nextToken == INT_LIT)
     /* Get the next token */
         lex();
-    /* If the RHS is (<expr>), call lex to pass over the
-    left parenthesis, call expr, and check for the right
-    parenthesis */
+    /* If the RHS is (<expr>), call lex to pass over the left parenthesis, call expr, and check for the right parenthesis */
     else {
         if (nextToken == LEFT_PAREN) {
             lex();
             expr();
             if (nextToken == RIGHT_PAREN)
                 lex();
-            else
+            else {
                 printf("Where is the right parenthesis?\n");
                 fclose(in_fp);
+            }
         }
-        /* It was not an id, an integer literal, or a left
-        parenthesis */
-        else
-            printf("An expression must start with an identifier, an integer literal, or a left parenthesis.\n");
+        /* It was not an id, an integer literal, or a left parenthesis */
+        else {
+            printf("An operand of an expression can only be an identifier, an integer literal, or a left parenthesis.\n");
             fclose(in_fp);
+        }
     }
     printf("Exit <factor>\n");
 }
@@ -597,55 +601,55 @@ void ifStmt() {
 } /* end of ifStmt */
 
 /* Function boolExpr
-<boolExpr> -> <boolExprHigher> {"||" <boolExprHigher>}
+<boolExpr> -> <boolTerm> {"||" <boolTerm>}
 */
 void boolExpr() {
     printf("Enter <boolExpr>\n");
-    boolExprHigher();
+    boolTerm();
     while (nextToken == OR_OP){
         /* Consume the "||" token */
-        lex();
-        /* Call boolExprHigher to parse the next part of the expression */
-        boolExprHigher();
-    }
-    printf("Exit <boolExpr>\n");
-}
-
-/* Function boolExprHigher
-<boolExprHigher> -> <boolTerm> {"&&" <boolTerm>}
-*/
-void boolExprHigher() {
-    printf("Enter <boolExprHigher>\n");
-    boolTerm();
-    while (nextToken == AND_OP) {
-        /* Consume the "&&" token */
         lex();
         /* Call boolTerm to parse the next part of the expression */
         boolTerm();
     }
-    printf("Exit <boolExprHigher>\n");
+    printf("Exit <boolExpr>\n");
 }
 
 /* Function boolTerm
-<boolTerm> -> <boolTermHigher> {("==" | "!=") <boolTermHigher>}
+<boolTerm> -> <boolEquality> {"&&" <boolEquality>}
 */
 void boolTerm() {
     printf("Enter <boolTerm>\n");
-    boolTermHigher();
-    while (nextToken == EQUALITY_OP || nextToken == NOT_EQUALITY_OP) {
-        /* Consume the "==" or "!=" token */
+    boolEquality();
+    while (nextToken == AND_OP) {
+        /* Consume the "&&" token */
         lex();
-        /* Call boolTermHigher to parse the next part of the expression */
-        boolTermHigher();
+        /* Call boolEquality to parse the next part of the expression */
+        boolEquality();
     }
     printf("Exit <boolTerm>\n");
 }
 
-/* Function boolTermHigher
-<boolTermHigher> -> <factor> {("<" | ">" | "<=" | ">=") <factor>}
+/* Function boolEquality
+<boolEquality> -> <boolRelational> {("==" | "!=") <boolRelational>}
 */
-void boolTermHigher() {
-    printf("Enter <boolTermHigher>\n");
+void boolEquality() {
+    printf("Enter <boolEquality>\n");
+    boolRelational();
+    while (nextToken == EQUALITY_OP || nextToken == NOT_EQUALITY_OP) {
+        /* Consume the "==" or "!=" token */
+        lex();
+        /* Call boolRelational to parse the next part of the expression */
+        boolRelational();
+    }
+    printf("Exit <boolEquality>\n");
+}
+
+/* Function boolRelational
+<boolRelational> -> <boolFactor> {("<" | ">" | "<=" | ">=") <boolFactor>}
+*/
+void boolRelational() {
+    printf("Enter <boolRelational>\n");
     boolFactor();
     while (nextToken == GT_OP || nextToken == LT_OP || nextToken == GE_OP || nextToken == LE_OP) {
         /* Consume the comparison operator */
@@ -653,7 +657,7 @@ void boolTermHigher() {
         /* Call boolFactor to parse the next part of the expression */
         boolFactor();
     }
-    printf("Exit <boolTermHigher>\n");
+    printf("Exit <boolRelational>\n");
 }
 
 /* Function boolFactor
@@ -676,6 +680,7 @@ void boolFactor() {
         // Check for the right parenthesis
         if (nextToken != RIGHT_PAREN) {
             printf("Where is the right parenthesis?\n");
+            fclose(in_fp);
         } else {
             // Consume the right parenthesis
             lex();
@@ -861,3 +866,4 @@ void forStmt() {
 
 // TODO: Ambiguity in between <boolExpr> and <expr> is partially resolved technically by <boolExpr> containing <expr> inside in it, and only <boolExpr> being called in <statement>. But is it possible to have a case where <expr> is called directly in <statement>?
 // TODO: Front.in sample is giving infinite loop. For both current input and "(sum + 47) / total"
+// TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
