@@ -58,6 +58,7 @@ void assignStmt();
 #define DIGIT 0
 #define LETTER 1
 #define UNKNOWN 2
+#define COMMENT 3
 
 /* Token codes */
 #define INT_LIT 10
@@ -101,7 +102,8 @@ void assignStmt();
 #define EOL 90
 #define COMMA 91
 #define APOSTROPHE 92
-#define COMMENT 93
+#define COMMENT_SYMB 93
+#define UNDERSCORE 94
 #define UNREGISTERED_SYMBOL 99
 
 /* Extras */
@@ -113,12 +115,14 @@ void assignStmt();
 
 /* main driver */
 int main() {
-    //setlocale(LC_CTYPE, "");
+    /* setlocale(LC_CTYPE, "UTF-8"); */
     if ((in_fp = _wfopen(L"front.in", L"rb")) == NULL)
         perror("front.in is not in the executable's directory or cannot be opened ");
     else {
-        wchar_t BOM = fgetwc(in_fp); // Assume the first character is a BOM (and skip it)
-        if (BOM != 0xFEFF) { // Check if the BOM is UTF-16LE and quit if not
+        /* Assume the first character is a BOM (and skip it) */
+        wchar_t BOM = fgetwc(in_fp);
+        /* Check if the BOM is UTF-16LE and quit if not */
+        if (BOM != 0xFEFF) {
             printf("front.in is not in UTF-16LE format.\n");
             fclose(in_fp);
             return 1;
@@ -127,6 +131,7 @@ int main() {
         getChar();
         lex();
         program();
+
         fclose(in_fp);
     }
 }
@@ -278,7 +283,11 @@ int lookup(int compareMode) {
                 break;
             case '$':
                 addChar();
-                nextToken = COMMENT;
+                nextToken = COMMENT_SYMB;
+                break;
+            case '_':
+                addChar();
+                nextToken = UNDERSCORE;
                 break;
             default:
                 addChar();
@@ -385,6 +394,8 @@ void getChar() {
             charClass = LETTER;
         else if (isdigit(nextChar))
             charClass = DIGIT;
+        else if (nextChar == L'$')
+            charClass = COMMENT;
         else
             charClass = UNKNOWN;
     }
@@ -434,6 +445,18 @@ int lex() {
             lookup(OPERATOR_MODE);
             getChar();
             break;
+        case COMMENT:
+            do {
+                getChar();
+            } while (charClass != COMMENT && charClass != EOF);
+            if (charClass == EOF) {
+                error(L"Comments must be opened and closed with '$'.");
+            } else {
+                /* Skip the closing comment symbol '$' */
+                getChar();
+                /* Continue lexing after the comment*/
+                return lex();
+            }
         case EOF:
             nextToken = EOF;
             lexeme[0] = 'E';
@@ -958,5 +981,4 @@ void forStmt() {
 }
 
 // TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
-// TODO: Add a function to handle comments
 // TODO: Add a function to handle string literals
