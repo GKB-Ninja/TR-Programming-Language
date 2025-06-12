@@ -51,7 +51,6 @@ void charLit();
 void ifStmt();
 void whileStmt();
 void forStmt();
-void returnStmt();
 void declStmt();
 void assignStmt();
 
@@ -99,7 +98,6 @@ void assignStmt();
 #define RIGHT_CURLY 63
 #define LEFT_SQUARE 64
 #define RIGHT_SQUARE 65
-#define RETURN_CODE 70
 #define EOL 90
 #define COMMA 91
 #define APOSTROPHE 92
@@ -140,7 +138,7 @@ void error(const wchar_t *message) {
     static int errorRaised = 0; // Flag to track if an error has already been raised
     if (!errorRaised) {
         errorRaised = 1; // Set the flag to indicate an error has been raised
-        wcsncpy(errMsg, L"This language doesn't belong to TR-701. Reason: ", 255);
+        wcsncpy(errMsg, L"This language doesn't belong to TR-701.\nReason: ", 255);
         wcscat(errMsg, message);
         errMsg[255] = L'\0';
         fclose(in_fp);
@@ -297,8 +295,6 @@ int lookup(int compareMode) {
             nextToken = WHILE_CODE;
         } else if (wcscmp(lexeme, L"for") == 0) {
             nextToken = FOR_CODE;
-        } else if (wcscmp(lexeme, L"return") == 0) {
-            nextToken = RETURN_CODE;
         } else if (wcscmp(lexeme, L"break") == 0) {
             nextToken = BREAK_CODE;
         } else if (wcscmp(lexeme, L"continue") == 0) {
@@ -457,7 +453,7 @@ void program() {
     printf("Enter <program>\n");
     statementList();
     if (nextToken != EOF) {
-        error(L"Unexpected token after statement list.");
+        error(L"Wrong use of closing curly brace. Expected EOF.");
     } else
         printf("Exit <program>\n");
     wprintf(errMsg);
@@ -484,18 +480,24 @@ void statementList() {
 }
 
 /* Function statement
-<statement> -> <boolExpr> | <declStmt> | <assignStmt>
+<statement> -> "continue" | "break" | <boolExpr> | <declStmt> | <assignStmt>
 */
 void statement() {
     printf("Enter <statement>\n");
-    if (nextToken == TYPE_INT || nextToken == TYPE_BOOL || nextToken == TYPE_CHAR || nextToken == TYPE_FLOAT || nextToken == TYPE_DOUBLE) {
+    if (nextToken == CONTINUE_CODE) {
+        lex();
+    } else if (nextToken == BREAK_CODE) {
+        lex();
+    } else if (nextToken == TYPE_INT || nextToken == TYPE_BOOL || nextToken == TYPE_CHAR || nextToken == TYPE_FLOAT ||
+               nextToken == TYPE_DOUBLE) {
         declStmt();
     } else if (nextToken == IDENT) {
         assignStmt();
-    } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN || nextToken == INT_LIT || nextToken == FP_LIT) {
+    } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN ||
+               nextToken == INT_LIT || nextToken == FP_LIT) {
         error(L"Expressions are not allowed as standalone statements. Use them in control statements or assignments.");
     } else {
-        error(L"Illegal statement starting with token.");
+        error(L"Illegal statement.");
     }
     printf("Exit <statement>\n");
 }
