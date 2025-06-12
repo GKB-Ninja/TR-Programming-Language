@@ -9,12 +9,13 @@
 
 /* Variables */
 int charClass;
-wchar_t lexeme [100];
+wchar_t lexeme[100];
 wchar_t nextChar;
 int lexLen;
 int token;
 int nextToken;
 FILE *in_fp;
+wchar_t errMsg[256] = L"No errors found. This source code belongs to TR-701";
 
 /* Function declarations */
 void addChar();
@@ -22,6 +23,7 @@ void getChar();
 void getNonBlank();
 int lex();
 int lookup(int compareMode);
+void error(const wchar_t *message); // Universal error function
 
 void program();
 void statementList();
@@ -31,7 +33,6 @@ void controlStatement();
 void expr();
 void factor();
 void term();
-void error();
 void charLit();
 
 void boolExpr();
@@ -127,6 +128,15 @@ int main() {
 }
 
 /************************************************************************************/
+
+/* error - a universal error handling function */
+void error(const wchar_t *message) {
+    wcsncpy(errMsg, L"This language doesn't belong to TR-701. Reason: ", 255);
+    wcscat(errMsg, message);
+    errMsg[255] = L'\0';
+    fclose(in_fp);
+    nextToken = EOF;
+}
 
 /* lookup - a function to lookup reserved keywords and symbols, returning the nextToken */
 int lookup(int compareMode) {
@@ -437,10 +447,10 @@ void program() {
     printf("Enter <program>\n");
     statementList();
     if (nextToken != EOF) {
-        printf("Unexpected token after statement list: %d\n", nextToken);
-        fclose(in_fp);
+        error(L"Unexpected token after statement list.");
     } else
         printf("Exit <program>\n");
+    wprintf(errMsg);
 }
 
 /* Function statementList
@@ -454,9 +464,7 @@ void statementList() {
             if (nextToken == EOL) {
                 lex();
             } else {
-                printf("Expected a '.' after a statement.\n");
-                fclose(in_fp);
-                nextToken = EOF;
+                error(L"Expected a '.' after a statement.");
             }
         } else {
             controlStatement();
@@ -477,8 +485,7 @@ void statement() {
     } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN || nextToken == INT_LIT || nextToken == FP_LIT) {
         boolExpr();
     } else {
-        printf("Illegal statement starting with token: %d\n", nextToken);
-        fclose(in_fp);
+        error(L"Illegal statement starting with token.");
     }
     printf("Exit <statement>\n");
 }
