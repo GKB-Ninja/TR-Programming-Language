@@ -32,6 +32,7 @@ void expr();
 void factor();
 void term();
 void error();
+void charLit();
 
 void boolExpr();
 void boolTerm();
@@ -54,46 +55,48 @@ void assignStmt();
 
 /* Token codes */
 #define INT_LIT 10
-#define IDENT 11
-#define ASSIGN_OP 12
-#define EQUALITY_OP 13
-#define NOT_EQUALITY_OP 14
-#define LE_OP 15
-#define GE_OP 16
-#define LT_OP 17
-#define GT_OP 18
-#define NOT_OP 19
-#define AND_OP 20
-#define OR_OP 21
-#define ADD_OP 22
-#define SUB_OP 23
-#define MULT_OP 24
-#define DIV_OP 25
-#define POWER_OP 26
-#define MOD_OP 27
-#define COMMA 28
-#define IF_CODE 30
-#define ELSE_CODE 31
-#define WHILE_CODE 32
-#define FOR_CODE 33
-#define CONTINUE_CODE 34
-#define BREAK_CODE 35
-#define LEFT_PAREN 40
-#define RIGHT_PAREN 41
-#define LEFT_CURLY 42
-#define RIGHT_CURLY 43
-#define LEFT_SQUARE 44
-#define RIGHT_SQUARE 45
-#define RETURN_CODE 50
-#define TYPE_INT 60
-#define TYPE_BOOL 61
-#define TYPE_CHAR 62
-#define TYPE_FLOAT 63
-#define TYPE_DOUBLE 64
-#define TRUE_VAL 70
-#define FALSE_VAL 71
-#define COMMENT 89
+#define FP_LIT 11
+#define IDENT 12
+#define TYPE_INT 13
+#define TYPE_FLOAT 14
+#define TYPE_DOUBLE 15
+#define TYPE_CHAR 16
+#define TYPE_BOOL 17
+#define TRUE_VAL 18
+#define FALSE_VAL 19
+#define ASSIGN_OP 20
+#define EQUALITY_OP 21
+#define NOT_EQUALITY_OP 22
+#define LE_OP 23
+#define GE_OP 24
+#define LT_OP 25
+#define GT_OP 26
+#define NOT_OP 27
+#define AND_OP 28
+#define OR_OP 29
+#define ADD_OP 30
+#define SUB_OP 31
+#define MULT_OP 32
+#define DIV_OP 33
+#define POWER_OP 34
+#define MOD_OP 35
+#define IF_CODE 40
+#define ELSE_CODE 41
+#define WHILE_CODE 42
+#define FOR_CODE 43
+#define CONTINUE_CODE 44
+#define BREAK_CODE 45
+#define LEFT_PAREN 60
+#define RIGHT_PAREN 61
+#define LEFT_CURLY 62
+#define RIGHT_CURLY 63
+#define LEFT_SQUARE 64
+#define RIGHT_SQUARE 65
+#define RETURN_CODE 70
 #define EOL 90
+#define COMMA 91
+#define APOSTROPHE 92
+#define COMMENT 93
 #define UNREGISTERED_SYMBOL 99
 
 /* Extras */
@@ -219,10 +222,6 @@ int lookup(int compareMode) {
                 addChar();
                 nextToken = MOD_OP;
                 break;
-            case ',':
-                addChar();
-                nextToken = COMMA;
-                break;
             case '(':
                 addChar();
                 nextToken = LEFT_PAREN;
@@ -247,13 +246,21 @@ int lookup(int compareMode) {
                 addChar();
                 nextToken = RIGHT_SQUARE;
                 break;
-            case '$':
-                addChar();
-                nextToken = COMMENT;
-                break;
             case '.':
                 addChar();
                 nextToken = EOL;
+                break;
+            case ',':
+                addChar();
+                nextToken = COMMA;
+                break;
+            case '\'':
+                addChar();
+                nextToken = APOSTROPHE;
+                break;
+            case '$':
+                addChar();
+                nextToken = COMMENT;
                 break;
             default:
                 addChar();
@@ -358,9 +365,12 @@ void addChar() {
 /* getChar - a function to get the next character of input and determine its character class */
 void getChar() {
     if ((nextChar = fgetwc(in_fp)) != WEOF) {
-        if (isalpha(nextChar) || lookup(TURKISH_LETTER_MODE)) charClass = LETTER;
-        else if (isdigit(nextChar)) charClass = DIGIT;
-        else charClass = UNKNOWN;
+        if (isalpha(nextChar) || lookup(TURKISH_LETTER_MODE))
+            charClass = LETTER;
+        else if (isdigit(nextChar))
+            charClass = DIGIT;
+        else
+            charClass = UNKNOWN;
     }
     else charClass = EOF;
 }
@@ -379,7 +389,7 @@ int lex() {
         case LETTER:
             addChar();
             getChar();
-            while (charClass == LETTER || charClass == DIGIT) {
+            while (charClass == LETTER || charClass == DIGIT || nextChar == '_') {
                 addChar();
                 getChar();
             }
@@ -392,7 +402,17 @@ int lex() {
                 addChar();
                 getChar();
             }
-            nextToken = INT_LIT;
+            if (nextChar == ',') {
+                addChar();
+                getChar();
+                while (charClass == DIGIT) {
+                    addChar();
+                    getChar();
+                }
+                nextToken = FP_LIT;
+            }
+            else
+                nextToken = INT_LIT;
             break;
         case UNKNOWN:
             lookup(OPERATOR_MODE);
@@ -453,7 +473,7 @@ void statement() {
         declStmt();
     } else if (nextToken == IDENT) {
         assignStmt();
-    } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN || nextToken == INT_LIT) {
+    } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN || nextToken == INT_LIT || nextToken == FP_LIT) {
         boolExpr();
     } else {
         printf("Illegal statement starting with token: %d\n", nextToken);
@@ -514,12 +534,12 @@ void term() {
 }
 
 /* Function factor
-<factor> -> ident | int_constant | '(' <expr> ')'
+<factor> -> IDENT | INT_LIT | FP_LIT | '(' <expr> ')'
 */
 void factor() {
     printf("Enter <factor>\n");
     /* Determine which RHS */
-    if (nextToken == IDENT || nextToken == INT_LIT)
+    if (nextToken == IDENT || nextToken == INT_LIT || nextToken == FP_LIT)
     /* Get the next token */
         lex();
     /* If the RHS is (<expr>), call lex to pass over the left parenthesis, call expr, and check for the right parenthesis */
@@ -545,7 +565,6 @@ void factor() {
 
 /* Function ifStmt
 <ifStmt> -> "if" '(' <boolExpr> ')' '{' <statementList> '}' ["else" '{' <statementList> '}']
-[else <statementList>]
 */
 void ifStmt() {
     printf("Enter <ifStmt>\n");
@@ -703,37 +722,114 @@ void boolNot() {
 }
 
 /* Function declStmt
-<declStmt> -> ("int" <identifier> ['=' <expr>]
-                | "bool" <identifier> ['=' <boolExpr>]
-                | "char" <identifier>
- */
+<declStmt> -> ("int" | "float" | "double") IDENT ['=' <expr>]
+                | "char" IDENT ['=' <char>]
+                | "bool" IDENT ['=' <boolExpr>]
+*/
 void declStmt() {
     printf("Enter <declStmt>\n");
-    /* Consume the data type token */
-    lex();
-    /* Check for an identifier */
-    if (nextToken != IDENT) {
-        printf("Expected an identifier after data type.\n");
-        fclose(in_fp);
-    } else {
-        /* Consume the identifier */
+    if (nextToken == TYPE_INT || nextToken == TYPE_FLOAT || nextToken == TYPE_DOUBLE) {
+        /* Consume the type token */
         lex();
-        /* Check for an assignment operator */
-        if (nextToken != ASSIGN_OP) {
-            printf("Expected '=' as assignment operator.\n");
+        if (nextToken != IDENT) {
+            printf("Expected an identifier after type declaration.\n");
             fclose(in_fp);
         } else {
-            /* Consume the assignment operator */
+            /* Consume the identifier */
             lex();
-            /* Call expr to parse the expression */
-            expr();
+            /* Check for an assignment operator */
+            if (nextToken == ASSIGN_OP) {
+                /* Get the next token */
+                lex();
+                /* Call expr to parse the expression */
+                expr();
+            } else if (nextToken != EOL) {
+                printf("Expected an assignment operator or end of line after variable declaration.\n");
+                fclose(in_fp);
+            }
         }
+    } else if (nextToken == TYPE_CHAR) {
+        /* Consume the "char" token */
+        lex();
+        if (nextToken != IDENT) {
+            printf("Expected an identifier after 'char'.\n");
+            fclose(in_fp);
+        } else {
+            /* Consume the identifier */
+            lex();
+            /* Check for an assignment operator */
+            if (nextToken == ASSIGN_OP) {
+                /* Get the next token */
+                lex();
+                /* Check for a character literal */
+                charLit();
+            } else if (nextToken != EOL) {
+                printf("Expected an assignment operator or end of line after variable declaration.\n");
+                fclose(in_fp);
+            }
+        }
+    } else if (nextToken == TYPE_BOOL) {
+        /* Consume the "bool" token */
+        lex();
+        if (nextToken != IDENT) {
+            printf("Expected an identifier after 'bool'.\n");
+            fclose(in_fp);
+        } else {
+            /* Consume the identifier */
+            lex();
+            /* Check for an assignment operator */
+            if (nextToken == ASSIGN_OP) {
+                /* Get the next token */
+                lex();
+                /* Call boolExpr to parse the boolean expression */
+                boolExpr();
+            } else if (nextToken != EOL) {
+                printf("Expected an assignment operator or end of line after variable declaration.\n");
+                fclose(in_fp);
+            }
+        }
+    }
+    else {
+        printf("Invalid type declaration: %d\n", nextToken);
+        fclose(in_fp);
     }
     printf("Exit <declStmt>\n");
 }
 
+/* Function charLit
+<charLit> -> "'" CHAR "'"
+*/
+void charLit() {
+    printf("Enter <charLit>\n");
+    /* Check for the opening single quote */
+    if (nextToken != APOSTROPHE) {
+        printf("Expected a single quote before character literal.\n");
+        fclose(in_fp);
+    } else {
+        /* Consume the opening single quote */
+        lex();
+        /* Check if the length is valid  */
+        if (lexLen == 1) {
+            /* Consume the character */
+            lex();
+            /* Check for the closing single quote */
+            if (nextToken != APOSTROPHE) {
+                printf("Expected a single quote after character literal.\n");
+                fclose(in_fp);
+            } else {
+                /* Consume the closing single quote */
+                lex();
+            }
+        } else {
+            printf("Character literal must be a single character.\n");
+            fclose(in_fp);
+        }
+    }
+    printf("Exit <charLit>\n");
+}
+
 /* Function assignStmt
-<assignStmt> -> ident '=' <expr>
+<assignStmt> -> IDENT '=' <expr>
 */
 void assignStmt() {
     printf("Enter <assignStmt>\n");
