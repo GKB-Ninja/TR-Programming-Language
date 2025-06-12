@@ -456,6 +456,7 @@ void statementList() {
             } else {
                 printf("Expected a '.' after a statement.\n");
                 fclose(in_fp);
+                nextToken = EOF;
             }
         } else {
             controlStatement();
@@ -518,7 +519,7 @@ void expr() {
 }
 
 /* Function term
-<term> -> <factor> {('*' | '/' | '%') <factor>)}
+<term> -> <factor> {('*' | '/' | '%') <factor>}
 */
 void term() {
     printf("Enter <term>\n");
@@ -568,48 +569,54 @@ void factor() {
 */
 void ifStmt() {
     printf("Enter <ifStmt>\n");
-    /* Consume the "if" token */
-    lex();
-    if (nextToken != LEFT_PAREN) {
-        printf("Expected a left parenthesis after \"if\".\n");
+    /* Check the "if" token */
+    if (nextToken != IF_CODE) {
+        printf("Expected \"if\" keyword.\n");
         fclose(in_fp);
     } else {
-        /* Call lex to get to the next token */
+        /* Consume the "if" token */
         lex();
-        /* Call boolExpr to parse the Boolean expression */
-        boolExpr();
-        if (nextToken != RIGHT_PAREN) {
-            printf("Where is the right parenthesis?\n");
+        if (nextToken != LEFT_PAREN) {
+            printf("Expected a left parenthesis after \"if\".\n");
             fclose(in_fp);
         } else {
-            /* Consume the right parenthesis */
+            /* Call lex to get to the next token */
             lex();
-            if (nextToken != LEFT_CURLY) {
-                printf("Expected a left curly brace after the condition in if statement.\n");
+            /* Call boolExpr to parse the Boolean expression */
+            boolExpr();
+            if (nextToken != RIGHT_PAREN) {
+                printf("Where is the right parenthesis?\n");
                 fclose(in_fp);
             } else {
-                /* Consume the left curly brace */
+                /* Consume the right parenthesis */
                 lex();
-                /* Call statementList to parse the then clause */
-                statementList();
-                if (nextToken != RIGHT_CURLY) {
-                    printf("Where is the right curly brace?\n");
+                if (nextToken != LEFT_CURLY) {
+                    printf("Expected a left curly brace after the condition in if statement.\n");
                     fclose(in_fp);
                 } else {
-                    /* Consume the right curly brace */
+                    /* Consume the left curly brace */
                     lex();
-                    /* If an else is next along with a left curly, parse the else clause */
-                    if (nextToken == ELSE_CODE) {
-                        /* Consume the "else" token */
+                    /* Call statementList to parse the then clause */
+                    statementList();
+                    if (nextToken != RIGHT_CURLY) {
+                        printf("Where is the right curly brace?\n");
+                        fclose(in_fp);
+                    } else {
+                        /* Consume the right curly brace */
                         lex();
-                        if (nextToken != LEFT_CURLY) {
-                            printf("Expected a left curly brace after \"else\".\n");
-                            fclose(in_fp);
-                        } else {
-                            /* Consume the left curly brace */
+                        /* If an else is next along with a left curly, parse the else clause */
+                        if (nextToken == ELSE_CODE) {
+                            /* Consume the "else" token */
                             lex();
-                            /* Call statementList to parse the else clause */
-                            statementList();
+                            if (nextToken != LEFT_CURLY) {
+                                printf("Expected a left curly brace after \"else\".\n");
+                                fclose(in_fp);
+                            } else {
+                                /* Consume the left curly brace */
+                                lex();
+                                /* Call statementList to parse the else clause */
+                                statementList();
+                            }
                         }
                     }
                 }
@@ -617,7 +624,7 @@ void ifStmt() {
         }
     }
     printf("Exit <ifStmt>\n");
-} /* end of ifStmt */
+}
 
 /* Function boolExpr
 <boolExpr> -> <boolTerm> {"||" <boolTerm>}
@@ -723,7 +730,7 @@ void boolNot() {
 
 /* Function declStmt
 <declStmt> -> ("int" | "float" | "double") IDENT ['=' <expr>]
-                | "char" IDENT ['=' <char>]
+                | "char" IDENT ['=' <charLit>]
                 | "bool" IDENT ['=' <boolExpr>]
 */
 void declStmt() {
@@ -797,7 +804,7 @@ void declStmt() {
 }
 
 /* Function charLit
-<charLit> -> "'" CHAR "'"
+<charLit> -> ' CHAR '
 */
 void charLit() {
     printf("Enter <charLit>\n");
@@ -829,21 +836,37 @@ void charLit() {
 }
 
 /* Function assignStmt
-<assignStmt> -> IDENT '=' <expr>
+<assignStmt> -> IDENT '=' (<expr> | <charLit> | <boolExpr>)
 */
 void assignStmt() {
     printf("Enter <assignStmt>\n");
-    /* Consume the identifier */
-    lex();
-    /* Check for an assignment operator */
-    if (nextToken != ASSIGN_OP) {
-        printf("Expected an assignment operator after identifier.\n");
+    if (nextToken != IDENT) {
+        printf("Expected an identifier for assignment.\n");
         fclose(in_fp);
     } else {
-        /* Consume the assignment operator */
+        /* Consume the identifier */
         lex();
-        /* Call expr to parse the expression */
-        expr();
+        /* Check for the assignment operator */
+        if (nextToken != ASSIGN_OP) {
+            printf("Expected an assignment operator after identifier.\n");
+            fclose(in_fp);
+        } else {
+            /* Consume the assignment operator */
+            lex();
+            /* Check the next token to determine the type of assignment */
+            if (nextToken == INT_LIT || nextToken == FP_LIT || nextToken == IDENT || nextToken == LEFT_PAREN ||
+                nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP) {
+                /* Call boolExpr since it contains both expr and boolExpr on a non-semantic level */
+                boolExpr();
+            } else if (nextToken == APOSTROPHE) {
+                /* Call charLit to parse the character literal */
+                charLit();
+            } else {
+                printf("Invalid assignment value: %d\n", nextToken);
+                fclose(in_fp);
+                nextToken = EOF;
+            }
+        }
     }
     printf("Exit <assignStmt>\n");
 }
@@ -853,40 +876,46 @@ void assignStmt() {
 */
 void whileStmt() {
     printf("Enter <whileStmt>\n");
-    /* Consume the "while" token */
-    lex();
-    /* Check for the left parenthesis */
-    if (nextToken != LEFT_PAREN) {
-        printf("Expected a left parenthesis after \"while\".\n");
+    /* Check the "while" token */
+    if (nextToken != WHILE_CODE) {
+        printf("Expected 'while' keyword.\n");
         fclose(in_fp);
     } else {
-        /* Consume the left parenthesis */
+        /* Consume the "while" token */
         lex();
-        /* Call boolExpr to parse the Boolean expression */
-        boolExpr();
-        /* Check for the right parenthesis */
-        if (nextToken != RIGHT_PAREN) {
-            printf("Where is the right parenthesis?\n");
+        /* Check for the left parenthesis */
+        if (nextToken != LEFT_PAREN) {
+            printf("Expected a left parenthesis after \"while\".\n");
             fclose(in_fp);
         } else {
-            /* Consume the right parenthesis */
+            /* Consume the left parenthesis */
             lex();
-            /* Check for the left curly brace */
-            if (nextToken != LEFT_CURLY) {
-                printf("Expected a left curly brace after while loop condition.\n");
+            /* Call boolExpr to parse the Boolean expression */
+            boolExpr();
+            /* Check for the right parenthesis */
+            if (nextToken != RIGHT_PAREN) {
+                printf("Where is the right parenthesis?\n");
                 fclose(in_fp);
             } else {
-                /* Consume the left curly brace */
+                /* Consume the right parenthesis */
                 lex();
-                /* Call statementList to parse the loop body */
-                statementList();
-                /* Check for the right curly brace */
-                if (nextToken != RIGHT_CURLY) {
-                    printf("Where is the right curly brace?\n");
+                /* Check for the left curly brace */
+                if (nextToken != LEFT_CURLY) {
+                    printf("Expected a left curly brace after while loop condition.\n");
                     fclose(in_fp);
                 } else {
-                    /* Consume the right curly brace */
+                    /* Consume the left curly brace */
                     lex();
+                    /* Call statementList to parse the loop body */
+                    statementList();
+                    /* Check for the right curly brace */
+                    if (nextToken != RIGHT_CURLY) {
+                        printf("Where is the right curly brace?\n");
+                        fclose(in_fp);
+                    } else {
+                        /* Consume the right curly brace */
+                        lex();
+                    }
                 }
             }
         }
@@ -899,58 +928,69 @@ void whileStmt() {
 */
 void forStmt() {
     printf("Enter <forStmt>\n");
-    /* Consume the "for" token */
-    lex();
-    /* Check for the left parenthesis */
-    if (nextToken != LEFT_PAREN) {
-        printf("Expected a left parenthesis after \"for\".\n");
+    /* Check the "for" token */
+    if (nextToken != FOR_CODE) {
+        printf("Expected \"for\" keyword.\n");
         fclose(in_fp);
     } else {
-        /* Consume the left parenthesis */
+        /* Consume the "for" token */
         lex();
-        /* Parse the first assignment statement */
-        assignStmt();
-        /* Check for dot */
-        if (nextToken != EOL) {
-            printf("Expected '.' after the first assignment in for loop.\n");
+        /* Check for the left parenthesis */
+        if (nextToken != LEFT_PAREN) {
+            printf("Expected a left parenthesis after \"for\".\n");
             fclose(in_fp);
         } else {
-            /* Consume the dot */
+            /* Consume the left parenthesis */
             lex();
-            /* Call boolExpr to parse the loop condition */
-            boolExpr();
-            /* Check for the second dot */
+            /* Parse the first assignment statement */
+            assignStmt();
+            /* If assignStmt raised error, exit <forStmt> */
+            if (nextToken == EOF) {
+                printf("Exit <forStmt>\n");
+                return;
+            }
+            /* Check for dot */
             if (nextToken != EOL) {
-                printf("Expected a '.' after the boolean expression in for loop.\n");
+                printf("Expected '.' after the first assignment in for loop.\n");
                 fclose(in_fp);
             } else {
-                /* Consume the second dot */
+                /* Consume the dot */
                 lex();
-                /* Parse the second assignment statement */
-                assignStmt();
-                /* Check for the right parenthesis */
-                if (nextToken != RIGHT_PAREN) {
-                    printf("Where is the right parenthesis?\n");
+                /* Call boolExpr to parse the loop condition */
+                boolExpr();
+                /* Check for the second dot */
+                if (nextToken != EOL) {
+                    printf("Expected a '.' after the boolean expression in for loop.\n");
                     fclose(in_fp);
                 } else {
-                    /* Consume the right parenthesis */
+                    /* Consume the second dot */
                     lex();
-                    /* Check for the left curly brace */
-                    if (nextToken != LEFT_CURLY) {
-                        printf("Expected a left curly brace after for loop condition.\n");
+                    /* Parse the second assignment statement */
+                    assignStmt();
+                    /* Check for the right parenthesis */
+                    if (nextToken != RIGHT_PAREN) {
+                        printf("Where is the right parenthesis?\n");
                         fclose(in_fp);
                     } else {
-                        /* Consume the left curly brace */
+                        /* Consume the right parenthesis */
                         lex();
-                        /* Call statementList to parse the loop body */
-                        statementList();
-                        /* Check for the right curly brace */
-                        if (nextToken != RIGHT_CURLY) {
-                            printf("Where is the right curly brace?\n");
+                        /* Check for the left curly brace */
+                        if (nextToken != LEFT_CURLY) {
+                            printf("Expected a left curly brace after for loop condition.\n");
                             fclose(in_fp);
                         } else {
-                            /* Consume the right curly brace */
+                            /* Consume the left curly brace */
                             lex();
+                            /* Call statementList to parse the loop body */
+                            statementList();
+                            /* Check for the right curly brace */
+                            if (nextToken != RIGHT_CURLY) {
+                                printf("Where is the right curly brace?\n");
+                                fclose(in_fp);
+                            } else {
+                                /* Consume the right curly brace */
+                                lex();
+                            }
                         }
                     }
                 }
@@ -961,5 +1001,7 @@ void forStmt() {
 }
 
 // TODO: Ambiguity in between <boolExpr> and <expr> is partially resolved technically by <boolExpr> containing <expr> inside in it, and only <boolExpr> being called in <statement>. But is it possible to have a case where <expr> is called directly in <statement>?
-// TODO: Front.in sample is giving infinite loop. For both current input and "(sum + 47) / total"
 // TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
+// TODO: Add a function to handle comments
+// TODO: Add a function to handle string literals
+// TODO: Need a universal error handling function that can be used in all functions, also telling if the language belongs to ours or not at the end.
