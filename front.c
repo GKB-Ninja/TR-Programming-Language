@@ -17,13 +17,13 @@ int nextToken;
 FILE *in_fp;
 wchar_t errMsg[256] = L"No errors found. This source code belongs to TR-701";
 
-/* Function declarations */
+/* Functions */
 void addChar();
 void getChar();
 void getNonBlank();
 int lex();
 int lookup(int compareMode);
-void error(const wchar_t *message); // Universal error function
+void error(const wchar_t *message);
 
 void program();
 void statementList();
@@ -33,14 +33,19 @@ void controlStatement();
 void expr();
 void factor();
 void term();
+void power();
 void charLit();
 
 void boolExpr();
-void boolTerm();
-void boolEquality();
-void boolRelational();
-void boolFactor();
-void boolNot();
+void boolOr();
+void boolAnd();
+void boolEq();
+void boolRel();
+void boolArithExpr();
+void boolArithTerm();
+void boolArithPower();
+void boolArithNot();
+void boolArithFactor();
 
 void ifStmt();
 void whileStmt();
@@ -131,11 +136,15 @@ int main() {
 
 /* error - a universal error handling function */
 void error(const wchar_t *message) {
-    wcsncpy(errMsg, L"This language doesn't belong to TR-701. Reason: ", 255);
-    wcscat(errMsg, message);
-    errMsg[255] = L'\0';
-    fclose(in_fp);
-    nextToken = EOF;
+    static int errorRaised = 0; // Flag to track if an error has already been raised
+    if (!errorRaised) {
+        errorRaised = 1; // Set the flag to indicate an error has been raised
+        wcsncpy(errMsg, L"This language doesn't belong to TR-701. Reason: ", 255);
+        wcscat(errMsg, message);
+        errMsg[255] = L'\0';
+        fclose(in_fp);
+        nextToken = EOF;
+    }
 }
 
 /* lookup - a function to lookup reserved keywords and symbols, returning the nextToken */
@@ -483,7 +492,7 @@ void statement() {
     } else if (nextToken == IDENT) {
         assignStmt();
     } else if (nextToken == TRUE_VAL || nextToken == FALSE_VAL || nextToken == NOT_OP || nextToken == LEFT_PAREN || nextToken == INT_LIT || nextToken == FP_LIT) {
-        boolExpr();
+        error(L"Expressions are not allowed as standalone statements. Use them in control statements or assignments.");
     } else {
         error(L"Illegal statement starting with token.");
     }
@@ -514,10 +523,7 @@ void controlStatement() {
 */
 void expr() {
     printf("Enter <expr>\n");
-    /* Parse the first term */
     term();
-    /* As long as the next token is + or -, get
-    the next token and parse the next term */
     while (nextToken == ADD_OP || nextToken == SUB_OP) {
         lex();
         term();
@@ -526,19 +532,29 @@ void expr() {
 }
 
 /* Function term
-<term> -> <factor> {('*' | '/' | '%') <factor>}
+<term> -> <power> {('*' | '/' | '%') <power>}
 */
 void term() {
     printf("Enter <term>\n");
-    /* Parse the first factor */
-    factor();
-    /* As long as the next token is * or /, get the
-    next token and parse the next factor */
+    power();
     while (nextToken == MULT_OP || nextToken == DIV_OP || nextToken == MOD_OP) {
         lex();
-        factor();
+        power();
     }
     printf("Exit <term>\n");
+}
+
+/* Function power
+<power> -> <factor> [ '^' <power> ]
+*/
+void power() {
+    printf("Enter <power>\n");
+    factor();
+    if (nextToken == POWER_OP) {
+        lex();
+        power();
+    }
+    printf("Exit <power>\n");
 }
 
 /* Function factor
@@ -546,27 +562,18 @@ void term() {
 */
 void factor() {
     printf("Enter <factor>\n");
-    /* Determine which RHS */
-    if (nextToken == IDENT || nextToken == INT_LIT || nextToken == FP_LIT)
-    /* Get the next token */
+    if (nextToken == IDENT || nextToken == INT_LIT || nextToken == FP_LIT) {
         lex();
-    /* If the RHS is (<expr>), call lex to pass over the left parenthesis, call expr, and check for the right parenthesis */
-    else {
-        if (nextToken == LEFT_PAREN) {
+    } else if (nextToken == LEFT_PAREN) {
+        lex();
+        expr();
+        if (nextToken == RIGHT_PAREN) {
             lex();
-            expr();
-            if (nextToken == RIGHT_PAREN)
-                lex();
-            else {
-                printf("Where is the right parenthesis?\n");
-                fclose(in_fp);
-            }
+        } else {
+            error(L"Expected a right parenthesis after expression.");
         }
-        /* It was not an id, an integer literal, or a left parenthesis */
-        else {
-            printf("An operand of an expression can only be an identifier, an integer literal, or a left parenthesis.\n");
-            fclose(in_fp);
-        }
+    } else {
+        error(L"Invalid arithmetic factor. Expected IDENT, INT_LIT, FP_LIT, or '('");
     }
     printf("Exit <factor>\n");
 }
@@ -634,105 +641,146 @@ void ifStmt() {
 }
 
 /* Function boolExpr
-<boolExpr> -> <boolTerm> {"||" <boolTerm>}
+<boolExpr> → <boolOr>
 */
 void boolExpr() {
     printf("Enter <boolExpr>\n");
-    boolTerm();
-    while (nextToken == OR_OP){
-        /* Consume the "||" token */
-        lex();
-        /* Call boolTerm to parse the next part of the expression */
-        boolTerm();
-    }
+    boolOr();
     printf("Exit <boolExpr>\n");
 }
 
-/* Function boolTerm
-<boolTerm> -> <boolEquality> {"&&" <boolEquality>}
+/* Function boolOr
+<boolOr> → <boolAnd> { '||' <boolAnd> }
 */
-void boolTerm() {
-    printf("Enter <boolTerm>\n");
-    boolEquality();
+void boolOr() {
+    printf("Enter <boolOr>\n");
+    boolAnd();
+    while (nextToken == OR_OP) {
+        lex();
+        boolAnd();
+    }
+    printf("Exit <boolOr>\n");
+}
+
+/* Function boolAnd
+<boolAnd> → <boolEq> { '&&' <boolEq> }
+*/
+void boolAnd() {
+    printf("Enter <boolAnd>\n");
+    boolEq();
     while (nextToken == AND_OP) {
-        /* Consume the "&&" token */
         lex();
-        /* Call boolEquality to parse the next part of the expression */
-        boolEquality();
+        boolEq();
     }
-    printf("Exit <boolTerm>\n");
+    printf("Exit <boolAnd>\n");
 }
 
-/* Function boolEquality
-<boolEquality> -> <boolRelational> {("==" | "!=") <boolRelational>}
+/* Function boolEq
+<boolEq> → <boolRel> { ('==' | '!=') <boolRel> }
 */
-void boolEquality() {
-    printf("Enter <boolEquality>\n");
-    boolRelational();
+void boolEq() {
+    printf("Enter <boolEq>\n");
+    boolRel();
     while (nextToken == EQUALITY_OP || nextToken == NOT_EQUALITY_OP) {
-        /* Consume the "==" or "!=" token */
         lex();
-        /* Call boolRelational to parse the next part of the expression */
-        boolRelational();
+        boolRel();
     }
-    printf("Exit <boolEquality>\n");
+    if (nextToken == LT_OP || nextToken == LE_OP || nextToken == GT_OP || nextToken == GE_OP || nextToken == ADD_OP
+        || nextToken == SUB_OP || nextToken == MULT_OP || nextToken == DIV_OP || nextToken == POWER_OP || nextToken == MOD_OP) {
+        error(L"A boolean value cannot be compared or operated with arithmetic operators.");
+    }
+    printf("Exit <boolEq>\n");
 }
 
-/* Function boolRelational
-<boolRelational> -> <boolFactor> {("<" | ">" | "<=" | ">=") <boolFactor>}
+/* Function boolRel
+<boolRel> → "true" | "false" | <boolArithExpr> { ('<' | '<=' | '>' | '>=') <boolArithExpr> }
 */
-void boolRelational() {
-    printf("Enter <boolRelational>\n");
-    boolFactor();
-    while (nextToken == GT_OP || nextToken == LT_OP || nextToken == GE_OP || nextToken == LE_OP) {
-        /* Consume the comparison operator */
-        lex();
-        /* Call boolFactor to parse the next part of the expression */
-        boolFactor();
-    }
-    printf("Exit <boolRelational>\n");
-}
-
-/* Function boolFactor
-<boolFactor> -> "true" | "false" | <boolNot> | <expr> | '(' <boolExpr> ')'
-*/
-void boolFactor() {
-    printf("Enter <boolFactor>\n");
-    /* If the next token is a NOT operator, call boolNot */
-    if (nextToken == NOT_OP)
-        boolNot();
-    // Check the next token to determine the type of boolean factor
+void boolRel() {
+    printf("Enter <boolRel>\n");
     if (nextToken == TRUE_VAL || nextToken == FALSE_VAL) {
-        // Consume the boolean literal
+        lex();
+    } else {
+        boolArithExpr();
+        while (nextToken == LT_OP || nextToken == LE_OP || nextToken == GT_OP || nextToken == GE_OP) {
+            lex();
+            boolArithExpr();
+        }
+    }
+    printf("Exit <boolRel>\n");
+}
+
+/* Function boolArithExpr
+<boolArithExpr> → <boolArithTerm> { ('+' | '-') <boolArithTerm> }
+*/
+void boolArithExpr() {
+    printf("Enter <boolArithExpr>\n");
+    boolArithTerm();
+    while (nextToken == ADD_OP || nextToken == SUB_OP) {
+        lex();
+        boolArithTerm();
+    }
+    printf("Exit <boolArithExpr>\n");
+}
+
+/* Function boolArithTerm
+<boolArithTerm> → <boolArithPower> { ('*' | '/' | '%') <boolArithPower> }
+*/
+void boolArithTerm() {
+    printf("Enter <boolArithTerm>\n");
+    boolArithPower();
+    while (nextToken == MULT_OP || nextToken == DIV_OP || nextToken == MOD_OP) {
+        lex();
+        boolArithPower();
+    }
+    printf("Exit <boolArithTerm>\n");
+}
+
+/* Function boolArithPower
+<boolArithPower> → <boolArithNot> [ '^' <boolArithPower> ]
+*/
+void boolArithPower() {
+    printf("Enter <boolArithPower>\n");
+    boolArithNot();
+    if (nextToken == POWER_OP) {
+        lex();
+        boolArithPower();
+    }
+    printf("Exit <boolArithPower>\n");
+}
+
+/* Function boolArithNot
+<boolArithNot> → '!' <boolArithNot> | <boolArithFactor>
+*/
+void boolArithNot() {
+    printf("Enter <boolArithNot>\n");
+    if (nextToken == NOT_OP) {
+        lex();
+        boolArithNot();
+    } else {
+        boolArithFactor();
+    }
+    printf("Exit <boolArithNot>\n");
+}
+
+/* Function boolArithFactor
+<boolArithFactor> → IDENT | INT_LIT | FP_LIT | '(' <boolExpr> ')'
+*/
+void boolArithFactor() {
+    printf("Enter <boolArithFactor>\n");
+    if (nextToken == IDENT || nextToken == INT_LIT || nextToken == FP_LIT) {
         lex();
     } else if (nextToken == LEFT_PAREN) {
-        // Consume the left parenthesis
         lex();
-        // Parse the boolean expression inside the parentheses
         boolExpr();
-        // Check for the right parenthesis
-        if (nextToken != RIGHT_PAREN) {
-            printf("Where is the right parenthesis?\n");
-            fclose(in_fp);
-        } else {
-            // Consume the right parenthesis
+        if (nextToken == RIGHT_PAREN) {
             lex();
+        } else {
+            error(L"Expected a right parenthesis after boolean expression.");
         }
-    } else
-        expr();
-    printf("Exit <boolFactor>\n");
-}
-
-/* Function boolNot
-<boolNot> -> '!' <boolFactor>
-*/
-void boolNot() {
-    printf("Enter <boolNot>\n");
-    /* Consume the NOT operator */
-    lex();
-    /* Call boolFactor to parse the factor after NOT */
-    boolFactor();
-    printf("Exit <boolNot>\n");
+    } else {
+        error(L"Invalid boolean arithmetic factor.");
+    }
+    printf("Exit <boolArithFactor>\n");
 }
 
 /* Function declStmt
@@ -1007,8 +1055,6 @@ void forStmt() {
     printf("Exit <forStmt>\n");
 }
 
-// TODO: Ambiguity in between <boolExpr> and <expr> is partially resolved technically by <boolExpr> containing <expr> inside in it, and only <boolExpr> being called in <statement>. But is it possible to have a case where <expr> is called directly in <statement>?
 // TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
 // TODO: Add a function to handle comments
 // TODO: Add a function to handle string literals
-// TODO: Need a universal error handling function that can be used in all functions, also telling if the language belongs to ours or not at the end.
