@@ -47,6 +47,7 @@ void boolArithNot();
 void boolArithFactor();
 
 void charLit();
+void stringLit();
 
 void ifStmt();
 void whileStmt();
@@ -68,42 +69,44 @@ void assignStmt();
 #define TYPE_FLOAT 14
 #define TYPE_DOUBLE 15
 #define TYPE_CHAR 16
-#define TYPE_BOOL 17
-#define TRUE_VAL 18
-#define FALSE_VAL 19
-#define ASSIGN_OP 20
-#define EQUALITY_OP 21
-#define NOT_EQUALITY_OP 22
-#define LE_OP 23
-#define GE_OP 24
-#define LT_OP 25
-#define GT_OP 26
-#define NOT_OP 27
-#define AND_OP 28
-#define OR_OP 29
-#define ADD_OP 30
-#define SUB_OP 31
-#define MULT_OP 32
-#define DIV_OP 33
-#define POWER_OP 34
-#define MOD_OP 35
-#define IF_CODE 40
-#define ELSE_CODE 41
-#define WHILE_CODE 42
-#define FOR_CODE 43
-#define CONTINUE_CODE 44
-#define BREAK_CODE 45
-#define LEFT_PAREN 60
-#define RIGHT_PAREN 61
-#define LEFT_CURLY 62
-#define RIGHT_CURLY 63
-#define LEFT_SQUARE 64
-#define RIGHT_SQUARE 65
+#define TYPE_STRING 17
+#define TYPE_BOOL 18
+#define TRUE_VAL 19
+#define FALSE_VAL 20
+#define ASSIGN_OP 30
+#define EQUALITY_OP 31
+#define NOT_EQUALITY_OP 32
+#define LE_OP 33
+#define GE_OP 34
+#define LT_OP 35
+#define GT_OP 36
+#define NOT_OP 37
+#define AND_OP 38
+#define OR_OP 39
+#define ADD_OP 40
+#define SUB_OP 41
+#define MULT_OP 42
+#define DIV_OP 43
+#define POWER_OP 44
+#define MOD_OP 45
+#define IF_CODE 60
+#define ELSE_CODE 61
+#define WHILE_CODE 62
+#define FOR_CODE 63
+#define BREAK_CODE 64
+#define CONTINUE_CODE 65
+#define LEFT_PAREN 80
+#define RIGHT_PAREN 81
+#define LEFT_CURLY 82
+#define RIGHT_CURLY 83
+#define LEFT_SQUARE 84
+#define RIGHT_SQUARE 85
 #define EOL 90
 #define COMMA 91
 #define APOSTROPHE 92
-#define COMMENT_SYMB 93
+#define QUOTE 93
 #define UNDERSCORE 94
+#define COMMENT_SYMB 95
 #define UNREGISTERED_SYMBOL 99
 
 /* Extras */
@@ -281,13 +284,17 @@ int lookup(int compareMode) {
                 addChar();
                 nextToken = APOSTROPHE;
                 break;
-            case '$':
+            case '"':
                 addChar();
-                nextToken = COMMENT_SYMB;
+                nextToken = QUOTE;
                 break;
             case '_':
                 addChar();
                 nextToken = UNDERSCORE;
+                break;
+            case '$':
+                addChar();
+                nextToken = COMMENT_SYMB;
                 break;
             default:
                 addChar();
@@ -296,7 +303,23 @@ int lookup(int compareMode) {
         }
 
     } else if (compareMode == KEYWORD_MODE) {
-        if (wcscmp(lexeme, L"if") == 0) {
+        if (wcscmp(lexeme, L"int") == 0) {
+            nextToken = TYPE_INT;
+        } else if (wcscmp(lexeme, L"float") == 0) {
+            nextToken = TYPE_FLOAT;
+        } else if (wcscmp(lexeme, L"double") == 0) {
+            nextToken = TYPE_DOUBLE;
+        } else if (wcscmp(lexeme, L"char") == 0) {
+            nextToken = TYPE_CHAR;
+        } else if (wcscmp(lexeme, L"string") == 0) {
+            nextToken = TYPE_STRING;
+        } else if (wcscmp(lexeme, L"bool") == 0) {
+            nextToken = TYPE_BOOL;
+        } else if (wcscmp(lexeme, L"true") == 0) {
+            nextToken = TRUE_VAL;
+        } else if (wcscmp(lexeme, L"false") == 0) {
+            nextToken = FALSE_VAL;
+        } else if (wcscmp(lexeme, L"if") == 0) {
             nextToken = IF_CODE;
         } else if (wcscmp(lexeme, L"else") == 0) {
             nextToken = ELSE_CODE;
@@ -308,20 +331,6 @@ int lookup(int compareMode) {
             nextToken = BREAK_CODE;
         } else if (wcscmp(lexeme, L"continue") == 0) {
             nextToken = CONTINUE_CODE;
-        } else if (wcscmp(lexeme, L"true") == 0){
-            nextToken = TRUE_VAL;
-        } else if (wcscmp(lexeme, L"false") == 0) {
-            nextToken = FALSE_VAL;
-        } else if (wcscmp(lexeme, L"int") == 0) {
-            nextToken = TYPE_INT;
-        } else if (wcscmp(lexeme, L"bool") == 0) {
-            nextToken = TYPE_BOOL;
-        } else if (wcscmp(lexeme, L"char") == 0) {
-            nextToken = TYPE_CHAR;
-        } else if (wcscmp(lexeme, L"float") == 0) {
-            nextToken = TYPE_FLOAT;
-        } else if (wcscmp(lexeme, L"double") == 0) {
-            nextToken = TYPE_DOUBLE;
         } else {
             nextToken = IDENT;
         }
@@ -512,7 +521,7 @@ void statement() {
     } else if (nextToken == BREAK_CODE) {
         lex();
     } else if (nextToken == TYPE_INT || nextToken == TYPE_BOOL || nextToken == TYPE_CHAR || nextToken == TYPE_FLOAT ||
-               nextToken == TYPE_DOUBLE) {
+               nextToken == TYPE_DOUBLE || nextToken == TYPE_STRING) {
         declStmt();
     } else if (nextToken == IDENT) {
         assignStmt();
@@ -799,6 +808,7 @@ void boolArithFactor() {
 /* Function declStmt
 <declStmt> -> ("int" | "float" | "double") IDENT ['=' <expr>]
                 | "char" IDENT ['=' <charLit>]
+                | "string" IDENT ['=' <stringLit>]
                 | "bool" IDENT ['=' <boolExpr>]
 */
 void declStmt() {
@@ -816,7 +826,9 @@ void declStmt() {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
-    } else if (nextToken == TYPE_CHAR) {
+    }
+
+    else if (nextToken == TYPE_CHAR) {
         lex();
         if (nextToken != IDENT) {
             error(L"Expected an identifier after character type declaration.");
@@ -829,7 +841,24 @@ void declStmt() {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
-    } else if (nextToken == TYPE_BOOL) {
+    }
+
+    else if (nextToken == TYPE_STRING) {
+        lex();
+        if (nextToken != IDENT) {
+            error(L"Expected an identifier after string type declaration.");
+        } else {
+            lex();
+            if (nextToken == ASSIGN_OP) {
+                lex();
+                stringLit();
+            } else if (nextToken != EOL) {
+                error(L"Expected an assignment operator or end of line after variable declaration.");
+            }
+        }
+    }
+
+    else if (nextToken == TYPE_BOOL) {
         lex();
         if (nextToken != IDENT) {
             error(L"Expected an identifier after bool type declaration.");
@@ -842,14 +871,16 @@ void declStmt() {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
-    } else {
+    }
+
+    else {
         error(L"Invalid type for type declaration.");
     }
     printf("Exit <declStmt>\n");
 }
 
 /* Function charLit
-<charLit> -> ' CHAR '
+<charLit> -> 'CHAR'
 */
 void charLit() {
     printf("Enter <charLit>\n");
@@ -869,6 +900,28 @@ void charLit() {
         }
     }
     printf("Exit <charLit>\n");
+}
+
+/* Function stringLit
+<stringLit> -> "STRING"
+*/
+void stringLit() {
+    printf("Enter <stringLit>\n");
+    if (nextToken != QUOTE) {
+        error(L"Expected a quote before string literal.");
+    } else {
+        lex();
+        while (nextToken != QUOTE && nextToken != EOF) {
+                lex();
+        }
+        if (nextToken == EOF) {
+            error(L"Expected to close the string literal with a quote.");
+        } else {
+            /* Consume the closing quote */
+            lex();
+        }
+    }
+    printf("Exit <stringLit>\n");
 }
 
 /* Function assignStmt
@@ -981,4 +1034,4 @@ void forStmt() {
 }
 
 // TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
-// TODO: Add a function to handle string literals
+// TODO: Implement all custom language TR-701 keywords and symbols
