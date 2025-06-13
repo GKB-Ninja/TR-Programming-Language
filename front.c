@@ -118,13 +118,28 @@ void assignStmt();
 
 /* main driver */
 int main() {
+    int fileNumber;
+    char filename[256];  // Buffer to store the constructed filename
+
     setlocale(LC_ALL, "");
-    if ((in_fp = fopen("front.in", "rb")) == NULL) {
-        perror("front.in is not in the executable's directory or cannot be opened.");
+
+    // Get file number from user
+    printf("Enter the file number: ");
+    if (scanf("%d", &fileNumber) != 1) {
+        printf("Error reading file number.\n");
+        return 1;
+    }
+
+    // Construct filename based on number
+    snprintf(filename, sizeof(filename), "front%d.in", fileNumber);
+
+    if ((in_fp = fopen(filename, "rb")) == NULL) {
+        perror("File is not in the executable's directory or cannot be opened");
+        return 1;
     } else {
         unsigned char bom[2];
         if (fread(bom, 1, 2, in_fp) != 2 || bom[0] != 0xFF || bom[1] != 0xFE) {
-            printf("front.in is not in UTF-16LE format.\n");
+            printf("%s is not in UTF-16LE format.\n", filename);
             fclose(in_fp);
             return 1;
         }
@@ -137,6 +152,7 @@ int main() {
     }
     return 0;
 }
+
 
 /************************************************************************************/
 

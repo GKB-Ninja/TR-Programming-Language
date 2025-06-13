@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
-    <file url="file://$PROJECT_DIR$/front.in" charset="UTF-16LE" />
+    <file url="file://$PROJECT_DIR$/front1.in" charset="UTF-16LE" />
+    <file url="file://$PROJECT_DIR$/front2.in" charset="UTF-16LE" />
+    <file url="file://$PROJECT_DIR$/front3.in" charset="UTF-16LE" />
+    <file url="file://$PROJECT_DIR$/front4.in" charset="UTF-16LE" />
   </component>
 </project>
