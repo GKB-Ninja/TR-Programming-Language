@@ -118,14 +118,12 @@ void assignStmt();
 
 /* main driver */
 int main() {
-    setlocale(LC_CTYPE, "");
-    if ((in_fp = fopen(L"front.in", L"rb")) == NULL)
-        perror("front.in is not in the executable's directory or cannot be opened ");
-    else {
-        /* Assume the first character is a BOM (and skip it) */
-        wchar_t BOM = fgetwc(in_fp);
-        /* Check if the BOM is UTF-16LE and quit if not */
-        if (BOM != 0xFEFF) {
+    setlocale(LC_ALL, "");
+    if ((in_fp = fopen("front.in", "rb")) == NULL) {
+        perror("front.in is not in the executable's directory or cannot be opened.");
+    } else {
+        unsigned char bom[2];
+        if (fread(bom, 1, 2, in_fp) != 2 || bom[0] != 0xFF || bom[1] != 0xFE) {
             printf("front.in is not in UTF-16LE format.\n");
             fclose(in_fp);
             return 1;
@@ -137,6 +135,7 @@ int main() {
 
         fclose(in_fp);
     }
+    return 0;
 }
 
 /************************************************************************************/
@@ -400,7 +399,15 @@ void addChar() {
 
 /* getChar - a function to get the next character of input and determine its character class */
 void getChar() {
-    if ((nextChar = fgetwc(in_fp)) != WEOF) {
+    unsigned char bytes[2];
+
+    if (fread(bytes, 1, 2, in_fp) == 2) {
+        nextChar = bytes[1] << 8 | bytes[0];
+    } else {
+        nextChar = WEOF;
+    }
+
+    if (nextChar != WEOF) {
         if (isalpha(nextChar) || lookup(TURKISH_LETTER_MODE))
             charClass = LETTER;
         else if (isdigit(nextChar))
@@ -409,8 +416,9 @@ void getChar() {
             charClass = COMMENT;
         else
             charClass = UNKNOWN;
+    } else {
+        charClass = EOF;
     }
-    else charClass = EOF;
 }
 
 /* getNonBlank - a function to call getChar until it returns a non-whitespace character */
@@ -514,7 +522,7 @@ void statementList() {
 }
 
 /* Function statement
-<statement> -> "atla" | "çık" | <boolExpr> | <declStmt> | <assignStmt>
+<statement> -> "atla" | "çık" | <declStmt> | <assignStmt>
 */
 void statement() {
     printf("Enter <statement>\n");
