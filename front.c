@@ -118,8 +118,8 @@ void assignStmt();
 
 /* main driver */
 int main() {
-    /* setlocale(LC_CTYPE, "UTF-8"); */
-    if ((in_fp = _wfopen(L"front.in", L"rb")) == NULL)
+    setlocale(LC_CTYPE, "");
+    if ((in_fp = fopen(L"front.in", L"rb")) == NULL)
         perror("front.in is not in the executable's directory or cannot be opened ");
     else {
         /* Assume the first character is a BOM (and skip it) */
@@ -161,20 +161,34 @@ int lookup(int compareMode) {
             case '=':
                 addChar();
                 getChar();
-                if (nextChar == '=') {
+                if (nextChar == '?') {
                     addChar();
                     nextToken = EQUALITY_OP;
                 } else {
                     ungetwc(nextChar, in_fp);
-                    nextToken = ASSIGN_OP;
+                    nextToken = UNREGISTERED_SYMBOL;
                 }
                 break;
             case '<':
+                /* "<" is LT, "<=" is LE, "<<<" is ASSIGN_OP */
                 addChar();
                 getChar();
                 if (nextChar == '=') {
                     addChar();
                     nextToken = LE_OP;
+                } else if (nextChar == '<') {
+                    wchar_t temp = nextChar;
+                    addChar();
+                    getChar();
+                    if (nextChar == '<') {
+                        addChar();
+                        nextToken = ASSIGN_OP;
+                    } else {
+                        ungetwc(nextChar, in_fp);
+                        ungetwc(temp, in_fp);
+                        lexeme[1] = 0;
+                        nextToken = LT_OP;
+                    }
                 } else {
                     ungetwc(nextChar, in_fp);
                     nextToken = LT_OP;
@@ -194,7 +208,7 @@ int lookup(int compareMode) {
             case '!':
                 addChar();
                 getChar();
-                if (nextChar == '=') {
+                if (nextChar == '?') {
                     addChar();
                     nextToken = NOT_EQUALITY_OP;
                 } else {
@@ -303,33 +317,33 @@ int lookup(int compareMode) {
         }
 
     } else if (compareMode == KEYWORD_MODE) {
-        if (wcscmp(lexeme, L"int") == 0) {
+        if (wcscmp(lexeme, L"tam") == 0) {
             nextToken = TYPE_INT;
-        } else if (wcscmp(lexeme, L"float") == 0) {
+        } else if (wcscmp(lexeme, L"küsürat") == 0) {
             nextToken = TYPE_FLOAT;
-        } else if (wcscmp(lexeme, L"double") == 0) {
+        } else if (wcscmp(lexeme, L"dev") == 0) {
             nextToken = TYPE_DOUBLE;
-        } else if (wcscmp(lexeme, L"char") == 0) {
+        } else if (wcscmp(lexeme, L"hane") == 0) {
             nextToken = TYPE_CHAR;
-        } else if (wcscmp(lexeme, L"string") == 0) {
+        } else if (wcscmp(lexeme, L"tümce") == 0) {
             nextToken = TYPE_STRING;
-        } else if (wcscmp(lexeme, L"bool") == 0) {
+        } else if (wcscmp(lexeme, L"mantık") == 0) {
             nextToken = TYPE_BOOL;
-        } else if (wcscmp(lexeme, L"true") == 0) {
+        } else if (wcscmp(lexeme, L"doğru") == 0) {
             nextToken = TRUE_VAL;
-        } else if (wcscmp(lexeme, L"false") == 0) {
+        } else if (wcscmp(lexeme, L"yanlış") == 0) {
             nextToken = FALSE_VAL;
-        } else if (wcscmp(lexeme, L"if") == 0) {
+        } else if (wcscmp(lexeme, L"madem") == 0) {
             nextToken = IF_CODE;
-        } else if (wcscmp(lexeme, L"else") == 0) {
+        } else if (wcscmp(lexeme, L"şayet") == 0) {
             nextToken = ELSE_CODE;
-        } else if (wcscmp(lexeme, L"while") == 0) {
+        } else if (wcscmp(lexeme, L"iken") == 0) {
             nextToken = WHILE_CODE;
-        } else if (wcscmp(lexeme, L"for") == 0) {
+        } else if (wcscmp(lexeme, L"sayaç") == 0) {
             nextToken = FOR_CODE;
-        } else if (wcscmp(lexeme, L"break") == 0) {
+        } else if (wcscmp(lexeme, L"çık") == 0) {
             nextToken = BREAK_CODE;
-        } else if (wcscmp(lexeme, L"continue") == 0) {
+        } else if (wcscmp(lexeme, L"atla") == 0) {
             nextToken = CONTINUE_CODE;
         } else {
             nextToken = IDENT;
@@ -338,40 +352,28 @@ int lookup(int compareMode) {
     } else if (compareMode == TURKISH_LETTER_MODE) {
         switch (nextChar) {
             case L'Ç':
-                nextChar = 128;
                 return 1;
             case L'ç':
-                nextChar = 135;
                 return 1;
             case L'ı':
-                nextChar = 141;
                 return 1;
             case L'İ':
-                nextChar = 152;
                 return 1;
             case L'ö':
-                nextChar = 148;
                 return 1;
             case L'Ö':
-                nextChar = 153;
                 return 1;
             case L'Ü':
-                nextChar = 154;
                 return 1;
             case L'ü':
-                nextChar = 129;
                 return 1;
             case L'Ş':
-                nextChar = 158;
                 return 1;
             case L'ş':
-                nextChar = 159;
                 return 1;
             case L'Ğ':
-                nextChar = 166;
                 return 1;
             case L'ğ':
-                nextChar = 167;
                 return 1;
             default:
                 return 0;
@@ -413,7 +415,7 @@ void getChar() {
 
 /* getNonBlank - a function to call getChar until it returns a non-whitespace character */
 void getNonBlank() {
-    while (isspace(nextChar))
+    while (iswspace(nextChar))
         getChar();
 }
 
@@ -512,7 +514,7 @@ void statementList() {
 }
 
 /* Function statement
-<statement> -> "continue" | "break" | <boolExpr> | <declStmt> | <assignStmt>
+<statement> -> "atla" | "çık" | <boolExpr> | <declStmt> | <assignStmt>
 */
 void statement() {
     printf("Enter <statement>\n");
@@ -554,7 +556,7 @@ void controlStatement() {
 }
 
 /* Function expr
-<expr> -> <term> {('+' | '-') <term>}
+<expr> -> <term> {("+" | "-") <term>}
 */
 void expr() {
     printf("Enter <expr>\n");
@@ -567,7 +569,7 @@ void expr() {
 }
 
 /* Function term
-<term> -> <power> {('*' | '/' | '%') <power>}
+<term> -> <power> {("*" | "/" | "%") <power>}
 */
 void term() {
     printf("Enter <term>\n");
@@ -580,7 +582,7 @@ void term() {
 }
 
 /* Function power
-<power> -> <factor> [ '^' <power> ]
+<power> -> <factor> "^" <power> | <factor>
 */
 void power() {
     printf("Enter <power>\n");
@@ -593,7 +595,7 @@ void power() {
 }
 
 /* Function factor
-<factor> -> IDENT | INT_LIT | FP_LIT | '(' <expr> ')'
+<factor> -> IDENT | INT_LIT | FP_LIT | "(" <expr> ")"
 */
 void factor() {
     printf("Enter <factor>\n");
@@ -614,7 +616,7 @@ void factor() {
 }
 
 /* Function ifStmt
-<ifStmt> -> "if" '(' <boolExpr> ')' '{' <statementList> '}' ["else" '{' <statementList> '}']
+<ifStmt> -> "madem" "(" <boolExpr> ")" "{" <statementList> "}" ["şayet" "{" <statementList> "}"]
 */
 void ifStmt() {
     printf("Enter <ifStmt>\n");
@@ -663,7 +665,7 @@ void ifStmt() {
 }
 
 /* Function boolExpr
-<boolExpr> → <boolOr>
+<boolExpr> -> <boolOr>
 */
 void boolExpr() {
     printf("Enter <boolExpr>\n");
@@ -672,7 +674,7 @@ void boolExpr() {
 }
 
 /* Function boolOr
-<boolOr> → <boolAnd> { '||' <boolAnd> }
+<boolOr> -> <boolAnd> { "||" <boolAnd> }
 */
 void boolOr() {
     printf("Enter <boolOr>\n");
@@ -685,7 +687,7 @@ void boolOr() {
 }
 
 /* Function boolAnd
-<boolAnd> → <boolEq> { '&&' <boolEq> }
+<boolAnd> -> <boolEq> { "&&" <boolEq> }
 */
 void boolAnd() {
     printf("Enter <boolAnd>\n");
@@ -698,7 +700,7 @@ void boolAnd() {
 }
 
 /* Function boolEq
-<boolEq> → <boolRel> { ('==' | '!=') <boolRel> }
+<boolEq> -> <boolRel> { ("=?" | "!?") <boolRel> }
 */
 void boolEq() {
     printf("Enter <boolEq>\n");
@@ -715,7 +717,7 @@ void boolEq() {
 }
 
 /* Function boolRel
-<boolRel> → "true" | "false" | <boolArithExpr> { ('<' | '<=' | '>' | '>=') <boolArithExpr> }
+<boolRel> -> "doğru" | "yanlış" | <boolArithExpr> { ("<" | "<=" | ">" | ">=") <boolArithExpr> }
 */
 void boolRel() {
     printf("Enter <boolRel>\n");
@@ -732,7 +734,7 @@ void boolRel() {
 }
 
 /* Function boolArithExpr
-<boolArithExpr> → <boolArithTerm> { ('+' | '-') <boolArithTerm> }
+<boolArithExpr> -> <boolArithTerm> { ("+" | "-") <boolArithTerm> }
 */
 void boolArithExpr() {
     printf("Enter <boolArithExpr>\n");
@@ -745,7 +747,7 @@ void boolArithExpr() {
 }
 
 /* Function boolArithTerm
-<boolArithTerm> → <boolArithPower> { ('*' | '/' | '%') <boolArithPower> }
+<boolArithTerm> -> <boolArithPower> { ("*" | "/" | "%") <boolArithPower> }
 */
 void boolArithTerm() {
     printf("Enter <boolArithTerm>\n");
@@ -758,7 +760,7 @@ void boolArithTerm() {
 }
 
 /* Function boolArithPower
-<boolArithPower> → <boolArithNot> [ '^' <boolArithPower> ]
+<boolArithPower> -> <boolArithNot> "^" <boolArithPower> | <boolArithPower>
 */
 void boolArithPower() {
     printf("Enter <boolArithPower>\n");
@@ -771,7 +773,7 @@ void boolArithPower() {
 }
 
 /* Function boolArithNot
-<boolArithNot> → '!' <boolArithNot> | <boolArithFactor>
+<boolArithNot> -> "!" <boolArithNot> | <boolArithFactor>
 */
 void boolArithNot() {
     printf("Enter <boolArithNot>\n");
@@ -785,7 +787,7 @@ void boolArithNot() {
 }
 
 /* Function boolArithFactor
-<boolArithFactor> → IDENT | INT_LIT | FP_LIT | '(' <boolExpr> ')'
+<boolArithFactor> -> IDENT | INT_LIT | FP_LIT | "(" <boolExpr> ")"
 */
 void boolArithFactor() {
     printf("Enter <boolArithFactor>\n");
@@ -806,10 +808,12 @@ void boolArithFactor() {
 }
 
 /* Function declStmt
-<declStmt> -> ("int" | "float" | "double") IDENT ['=' <expr>]
-                | "char" IDENT ['=' <charLit>]
-                | "string" IDENT ['=' <stringLit>]
-                | "bool" IDENT ['=' <boolExpr>]
+<declStmt> -> "tam" IDENT ["<<<" <expr>]
+                | "küsürat" IDENT ["<<<" <expr>]
+                | "dev" IDENT ["<<<" <expr>]
+                | "hane" IDENT ["<<<" <charLit>]
+                | "tümce" IDENT ["<<<" <stringLit>]
+                | "mantık" IDENT ["<<<" <boolExpr>]
 */
 void declStmt() {
     printf("Enter <declStmt>\n");
@@ -925,7 +929,7 @@ void stringLit() {
 }
 
 /* Function assignStmt
-<assignStmt> -> IDENT '=' (<expr> | <charLit> | <boolExpr>)
+<assignStmt> -> IDENT "<<<" (<expr> | <charLit> | <boolExpr>)
 */
 void assignStmt() {
     printf("Enter <assignStmt>\n");
@@ -952,7 +956,7 @@ void assignStmt() {
 }
 
 /* Function whileStmt
-<whileStmt> -> "while" '(' <boolExpr> ')' '{' <statementList> '}'
+<whileStmt> -> "iken" "(" <boolExpr> ")" "{" <statementList> "}"
 */
 void whileStmt() {
     printf("Enter <whileStmt>\n");
@@ -987,7 +991,7 @@ void whileStmt() {
 }
 
 /* Function forStmt
-<forStmt> -> "for" '(' <assignStmt> '.' <boolExpr> '.' <assignStmt> ')' '{' <statementList> '}'
+<forStmt> -> "sayaç" "(" <assignStmt> "." <boolExpr> "." <assignStmt> ")" "{" <statementList> "}"
 */
 void forStmt() {
     printf("Enter <forStmt>\n");
@@ -1032,6 +1036,3 @@ void forStmt() {
     }
     printf("Exit <forStmt>\n");
 }
-
-// TODO: Convert all EBNFs to BNF (uncertain if it is needed for the project) (This might cause some changes in the code...)
-// TODO: Implement all custom language TR-701 keywords and symbols
