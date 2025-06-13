@@ -124,7 +124,7 @@ int main() {
     setlocale(LC_ALL, "");
 
     // Get file number from user
-    printf("Enter the file number: ");
+    printf("Enter the file number (between 1 and 4): ");
     if (scanf("%d", &fileNumber) != 1) {
         printf("Error reading file number.\n");
         return 1;
