@@ -101,7 +101,7 @@ void assignStmt();
 #define RIGHT_CURLY 83
 #define LEFT_SQUARE 84
 #define RIGHT_SQUARE 85
-#define EOL 90
+#define EOS 90
 #define COMMA 91
 #define APOSTROPHE 92
 #define QUOTE 93
@@ -287,7 +287,7 @@ int lookup(int compareMode) {
                 break;
             case '.':
                 addChar();
-                nextToken = EOL;
+                nextToken = EOS;
                 break;
             case ',':
                 addChar();
@@ -318,7 +318,7 @@ int lookup(int compareMode) {
     } else if (compareMode == KEYWORD_MODE) {
         if (wcscmp(lexeme, L"tam") == 0) {
             nextToken = TYPE_INT;
-        } else if (wcscmp(lexeme, L"küsürat") == 0) {
+        } else if (wcscmp(lexeme, L"küsurat") == 0) {
             nextToken = TYPE_FLOAT;
         } else if (wcscmp(lexeme, L"dev") == 0) {
             nextToken = TYPE_DOUBLE;
@@ -509,7 +509,7 @@ void statementList() {
     while (nextToken != EOF && nextToken != RIGHT_CURLY) {
         if (nextToken != IF_CODE && nextToken != WHILE_CODE && nextToken != FOR_CODE) {
             statement();
-            if (nextToken == EOL) {
+            if (nextToken == EOS) {
                 lex();
             } else {
                 error(L"Expected a '.' after a statement.");
@@ -817,7 +817,7 @@ void boolArithFactor() {
 
 /* Function declStmt
 <declStmt> -> "tam" IDENT ["<<<" <expr>]
-                | "küsürat" IDENT ["<<<" <expr>]
+                | "küsurat" IDENT ["<<<" <expr>]
                 | "dev" IDENT ["<<<" <expr>]
                 | "hane" IDENT ["<<<" <charLit>]
                 | "tümce" IDENT ["<<<" <stringLit>]
@@ -834,7 +834,7 @@ void declStmt() {
             if (nextToken == ASSIGN_OP) {
                 lex();
                 expr();
-            } else if (nextToken != EOL) {
+            } else if (nextToken != EOS) {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
@@ -849,7 +849,7 @@ void declStmt() {
             if (nextToken == ASSIGN_OP) {
                 lex();
                 charLit();
-            } else if (nextToken != EOL) {
+            } else if (nextToken != EOS) {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
@@ -864,7 +864,7 @@ void declStmt() {
             if (nextToken == ASSIGN_OP) {
                 lex();
                 stringLit();
-            } else if (nextToken != EOL) {
+            } else if (nextToken != EOS) {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
@@ -879,7 +879,7 @@ void declStmt() {
             if (nextToken == ASSIGN_OP) {
                 lex();
                 boolExpr();
-            } else if (nextToken != EOL) {
+            } else if (nextToken != EOS) {
                 error(L"Expected an assignment operator or end of line after variable declaration.");
             }
         }
@@ -1012,12 +1012,12 @@ void forStmt() {
         } else {
             lex();
             assignStmt();
-            if (nextToken != EOL) {
+            if (nextToken != EOS) {
                 error(L"Expected '.' after the first assignment in for loop.");
             } else {
                 lex();
                 boolExpr();
-                if (nextToken != EOL) {
+                if (nextToken != EOS) {
                     error(L"Expected '.' after the boolean expression in for loop.");
                 } else {
                     lex();
