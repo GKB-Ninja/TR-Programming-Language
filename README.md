@@ -13,3 +13,5 @@ This project is a lexical analyzer for a simple custom programming language, wit
   >  Outputs token type and lexeme during scanning
 
   >  UTF-16 (BOM-aware) input file support (front.in)
+
+  >  Both in-line and block comment handling with '$'
